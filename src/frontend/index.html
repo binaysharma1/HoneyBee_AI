@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Honeybee AI — Your Personalized Local Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: { extend: {
+                colors: {
+                    bgMain: '#0B0F0D', bgSecondary: '#111713', surface: '#151C18', surfaceHover: '#1C2620',
+                    borderSubtle: '#1E2B23', borderHover: '#2A3C32', emeraldAccent: '#10B981', matcha: '#34D399',
+                    limeAccent: '#A3E635', warmWhite: '#F3F4F6', mutedGreen: '#9CA3AF', textMuted: '#6B7280'
+                },
+                fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                boxShadow: { glow: '0 0 35px -5px rgba(16, 185, 129, 0.35)', subtle: '0 4px 20px -2px rgba(0, 0, 0, 0.5)' }
+            } }
+        }
+    </script>
+    <style>
+        @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .animate-floaty { animation: floaty 5s ease-in-out infinite; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .grid-bg {
+            background-image: linear-gradient(rgba(30,43,35,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(30,43,35,.35) 1px, transparent 1px);
+            background-size: 42px 42px;
+        }
+    </style>
+</head>
+<body class="bg-bgMain text-warmWhite font-sans antialiased">
+
+    <!-- Nav -->
+    <header class="border-b border-borderSubtle/60 bg-bgMain/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+            <a href="/" class="flex items-center space-x-2.5">
+                <div class="w-7 h-7 bg-surface border border-emeraldAccent/40 rounded-lg flex items-center justify-center text-emeraldAccent shadow-glow">
+                    <svg class="w-3.5 h-3.5 " viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.4 9C17 7.8 16.2 7 15 6.5V5H14V6.4H13.6C12.5 6.4 11.6 6.8 10.8 7.6L10.4 8L9 7.5C8.7 7.4 8.4 7.3 8 7.3C7.4 7.3 6.8 7.5 6.3 7.9C5.7 8.3 5.4 8.8 5.2 9.3C5 10 5 10.6 5.2 11.3C5.5 12 5.8 12.5 6.3 12.8C5.9 14.3 6.2 15.6 7.3 16.7C8.1 17.5 9 17.9 10.1 17.9C10.6 17.9 10.9 17.9 11.2 17.8C11.8 18.6 12.6 19.1 13.6 19.1C13.9 19.1 14.3 19.1 14.6 19C15.2 18.8 15.6 18.4 16 17.9C16.4 17.3 16.6 16.8 16.6 16.2C16.6 15.8 16.6 15.5 16.5 15.2L16 13.6L16.6 13.2C17.4 12.4 17.8 11.3 17.7 10.1H19V9H17.4M7.7 11.3C7.1 11 6.9 10.6 7.1 10C7.3 9.4 7.7 9.2 8.3 9.4L11.5 10.6C9.9 11.4 8.7 11.6 7.7 11.3M14 16.9C13.4 17.1 13 16.9 12.7 16.3C12.4 15.3 12.6 14.1 13.4 12.5L14.6 15.6C14.8 16.3 14.6 16.7 14 16.9M15.2 11.6L14.6 10V9.9L14.3 9.6H14.2L12.6 9C13 8.7 13.4 8.5 13.9 8.5C14.4 8.5 14.9 8.7 15.3 9.1C15.7 9.5 15.9 9.9 15.9 10.4C15.7 10.7 15.5 11.2 15.2 11.6Z"/></svg>
+                </div>
+                <span class="font-semibold tracking-tight text-sm">Honeybee AI</span>
+            </a>
+            <div class="flex items-center space-x-3 text-xs">
+                <a href="/login" class="text-mutedGreen hover:text-warmWhite transition-colors px-3 py-1.5">Log in</a>
+                <a href="/signup" class="bg-emeraldAccent hover:bg-emerald-600 text-bgMain font-medium px-4 py-1.5 rounded-lg transition-colors">Get started</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="grid-bg border-b border-borderSubtle/60">
+        <div class="max-w-6xl mx-auto px-6 py-20 md:py-28 grid md:grid-cols-2 gap-12 items-center">
+            <div class="space-y-6 animate-fade-in">
+                <span class="inline-flex items-center text-[11px] font-mono text-matcha bg-surface border border-emeraldAccent/30 rounded-full px-3 py-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emeraldAccent animate-pulse mr-2"></span>Private · Local · Yours
+                </span>
+                <h1 class="text-4xl md:text-5xl font-bold tracking-tight leading-tight">
+                    A personal AI that <span class="text-emeraldAccent">actually remembers you.</span>
+                </h1>
+                <p class="text-mutedGreen text-sm md:text-base leading-relaxed max-w-lg">
+                    Honeybee AI is your personalized intelligence layer. It runs on your machine, learns your preferences with <span class="text-warmWhite font-medium">mem0 memory</span>, and stores everything in a <span class="text-warmWhite font-medium">PostgreSQL vector database</span> — so every conversation picks up where the last one left off.
+                </p>
+                <div class="flex items-center space-x-3">
+                    <a href="/signup" class="bg-emeraldAccent hover:bg-emerald-600 text-bgMain font-medium text-sm px-6 py-3 rounded-xl transition-all shadow-glow">Start free</a>
+                    <a href="/login" class="bg-surface hover:bg-surfaceHover border border-borderSubtle text-sm px-6 py-3 rounded-xl transition-colors">I have an account</a>
+                </div>
+                <div class="flex items-center space-x-5 text-[11px] text-textMuted font-mono">
+                    <span><i class="fa-solid fa-circle-check text-emeraldAccent mr-1"></i>No cloud lock-in</span>
+                    <span><i class="fa-solid fa-circle-check text-emeraldAccent mr-1"></i>mem0 + pgvector</span>
+                    <span><i class="fa-solid fa-circle-check text-emeraldAccent mr-1"></i>LM Studio ready</span>
+                </div>
+            </div>
+
+            <div class="animate-floaty">
+                <div class="bg-bgSecondary border border-borderSubtle rounded-2xl shadow-glow p-5 space-y-4">
+                    <div class="flex items-center space-x-2 text-xs text-textMuted font-mono">
+                        <span class="w-2 h-2 rounded-full bg-[#FF5F56]"></span>
+                        <span class="w-2 h-2 rounded-full bg-[#FFBD2E]"></span>
+                        <span class="w-2 h-2 rounded-full bg-[#27C93F]"></span>
+                        <span class="ml-2">honeybee — memory stream</span>
+                    </div>
+                    <div class="space-y-2 text-xs">
+                        <div class="bg-surface rounded-lg border border-borderSubtle px-3 py-2 text-mutedGreen">→ Retrieved 3 memories · OS: Ubuntu 24.04, Stack: LangGraph, Aesthetic: minimal dark</div>
+                        <div class="bg-surface rounded-lg border border-borderSubtle px-3 py-2 text-warmWhite">Hello again, Jonathan. Picking up your LangGraph scaffold from Tuesday — want the sandboxed tool runner next?</div>
+                        <div class="bg-emeraldAccent/10 border border-emeraldAccent/30 rounded-lg px-3 py-2 text-matcha">✓ Memory synced to PostgreSQL · pgvector index nominal</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="max-w-6xl mx-auto px-6 py-16">
+        <h2 class="text-xl font-semibold tracking-tight mb-8">Why Honeybee?</h2>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-surface border border-borderSubtle rounded-2xl p-5 space-y-3 hover:border-borderHover transition-colors">
+                <i class="fa-solid fa-brain text-emeraldAccent"></i>
+                <h3 class="text-sm font-semibold">Persistent memory</h3>
+                <p class="text-xs text-mutedGreen leading-relaxed">mem0 remembers preferences, projects, and context across every session.</p>
+            </div>
+            <div class="bg-surface border border-borderSubtle rounded-2xl p-5 space-y-3 hover:border-borderHover transition-colors">
+                <i class="fa-solid fa-database text-matcha"></i>
+                <h3 class="text-sm font-semibold">PostgreSQL + pgvector</h3>
+                <p class="text-xs text-mutedGreen leading-relaxed">Your vector store lives in a database you own — queryable, backable, yours.</p>
+            </div>
+            <div class="bg-surface border border-borderSubtle rounded-2xl p-5 space-y-3 hover:border-borderHover transition-colors">
+                <i class="fa-solid fa-house-signal text-limeAccent"></i>
+                <h3 class="text-sm font-semibold">Runs locally</h3>
+                <p class="text-xs text-mutedGreen leading-relaxed">OpenAI-compatible endpoint via LM Studio on :1234. No data leaves your box.</p>
+            </div>
+            <div class="bg-surface border border-borderSubtle rounded-2xl p-5 space-y-3 hover:border-borderHover transition-colors">
+                <i class="fa-solid fa-cubes text-emeraldAccent"></i>
+                <h3 class="text-sm font-semibold">Tool calling</h3>
+                <p class="text-xs text-mutedGreen leading-relaxed">Web search, code execution, and file analysis on a composable registry.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="border-t border-borderSubtle/60 py-6">
+        <div class="max-w-6xl mx-auto px-6 flex items-center justify-between text-[11px] text-textMuted font-mono">
+            <span><svg class="w-3 h-3 inline-block align-[-2px] text-emeraldAccent mr-1.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.4 9C17 7.8 16.2 7 15 6.5V5H14V6.4H13.6C12.5 6.4 11.6 6.8 10.8 7.6L10.4 8L9 7.5C8.7 7.4 8.4 7.3 8 7.3C7.4 7.3 6.8 7.5 6.3 7.9C5.7 8.3 5.4 8.8 5.2 9.3C5 10 5 10.6 5.2 11.3C5.5 12 5.8 12.5 6.3 12.8C5.9 14.3 6.2 15.6 7.3 16.7C8.1 17.5 9 17.9 10.1 17.9C10.6 17.9 10.9 17.9 11.2 17.8C11.8 18.6 12.6 19.1 13.6 19.1C13.9 19.1 14.3 19.1 14.6 19C15.2 18.8 15.6 18.4 16 17.9C16.4 17.3 16.6 16.8 16.6 16.2C16.6 15.8 16.6 15.5 16.5 15.2L16 13.6L16.6 13.2C17.4 12.4 17.8 11.3 17.7 10.1H19V9H17.4M7.7 11.3C7.1 11 6.9 10.6 7.1 10C7.3 9.4 7.7 9.2 8.3 9.4L11.5 10.6C9.9 11.4 8.7 11.6 7.7 11.3M14 16.9C13.4 17.1 13 16.9 12.7 16.3C12.4 15.3 12.6 14.1 13.4 12.5L14.6 15.6C14.8 16.3 14.6 16.7 14 16.9M15.2 11.6L14.6 10V9.9L14.3 9.6H14.2L12.6 9C13 8.7 13.4 8.5 13.9 8.5C14.4 8.5 14.9 8.7 15.3 9.1C15.7 9.5 15.9 9.9 15.9 10.4C15.7 10.7 15.5 11.2 15.2 11.6Z"/></svg>Honeybee AI · local-first assistant</span>
+            <span>mem0 · PostgreSQL · pgvector · LM Studio</span>
+        </div>
+    </footer>
+
+</body>
+</html>

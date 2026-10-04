@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Honeybee AI — Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bgMain: '#0B0F0D',
+                        bgSecondary: '#111713',
+                        surface: '#151C18',
+                        surfaceHover: '#1C2620',
+                        borderSubtle: '#1E2B23',
+                        borderHover: '#2A3C32',
+                        emeraldAccent: '#10B981',
+                        emeraldGlow: 'rgba(16, 185, 129, 0.15)',
+                        matcha: '#34D399',
+                        limeAccent: '#A3E635',
+                        warmWhite: '#F3F4F6',
+                        mutedGreen: '#9CA3AF',
+                        textMuted: '#6B7280'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    },
+                    boxShadow: {
+                        'glow': '0 0 25px -5px rgba(16, 185, 129, 0.2)',
+                        'subtle': '0 4px 20px -2px rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0B0F0D; }
+        ::-webkit-scrollbar-thumb { background: #1E2B23; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2A3C32; }
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { scrollbar-width: none; }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.02); }
+        }
+        .animate-glow { animation: pulseGlow 3s infinite ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes typingBlink {
+            0%, 80%, 100% { opacity: 0.25; }
+            40% { opacity: 1; }
+        }
+        .typing-dot { animation: typingBlink 1.2s infinite ease-in-out; display: inline-block; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        /* Sidebar collapsed mode: hide labels smoothly */
+        #sidebar.collapsed { width: 4rem; }
+        #sidebar.collapsed .collapse-hide { display: none; }
+        #sidebar.collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+        #sidebar.collapsed #recentChatsWrap,
+        #sidebar.collapsed #searchWrap,
+        #sidebar.collapsed #profileText,
+        #sidebar.collapsed #newChatLabel,
+        #sidebar.collapsed #newChatKbd,
+        #sidebar.collapsed #brandText { display: none; }
+        #sidebar.collapsed #profileRow { justify-content: center; }
+        #sidebar .google-btn i { transition: transform 0.3s; }
+    </style>
+</head>
+<body class="bg-bgMain text-warmWhite font-sans h-full overflow-hidden antialiased flex items-center justify-center">
+
+    <div class="flex flex-col h-screen w-screen max-w-[1720px] max-h-[1080px] shadow-2xl border border-borderSubtle md:rounded-xl overflow-hidden bg-bgMain">
+
+        <!-- App Titlebar -->
+        <header class="h-10 bg-bgSecondary border-b border-borderSubtle flex items-center justify-between px-4 select-none shrink-0">
+            <div class="flex items-center space-x-2">
+                <div class="flex space-x-1.5">
+                    <div class="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E]"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123]"></div>
+                    <div class="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29]"></div>
+                </div>
+                <span class="text-xs text-textMuted ml-3 font-mono tracking-wide"><svg class="w-3 h-3 inline-block align-[-2px] text-emeraldAccent mr-1.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.4 9C17 7.8 16.2 7 15 6.5V5H14V6.4H13.6C12.5 6.4 11.6 6.8 10.8 7.6L10.4 8L9 7.5C8.7 7.4 8.4 7.3 8 7.3C7.4 7.3 6.8 7.5 6.3 7.9C5.7 8.3 5.4 8.8 5.2 9.3C5 10 5 10.6 5.2 11.3C5.5 12 5.8 12.5 6.3 12.8C5.9 14.3 6.2 15.6 7.3 16.7C8.1 17.5 9 17.9 10.1 17.9C10.6 17.9 10.9 17.9 11.2 17.8C11.8 18.6 12.6 19.1 13.6 19.1C13.9 19.1 14.3 19.1 14.6 19C15.2 18.8 15.6 18.4 16 17.9C16.4 17.3 16.6 16.8 16.6 16.2C16.6 15.8 16.6 15.5 16.5 15.2L16 13.6L16.6 13.2C17.4 12.4 17.8 11.3 17.7 10.1H19V9H17.4M7.7 11.3C7.1 11 6.9 10.6 7.1 10C7.3 9.4 7.7 9.2 8.3 9.4L11.5 10.6C9.9 11.4 8.7 11.6 7.7 11.3M14 16.9C13.4 17.1 13 16.9 12.7 16.3C12.4 15.3 12.6 14.1 13.4 12.5L14.6 15.6C14.8 16.3 14.6 16.7 14 16.9M15.2 11.6L14.6 10V9.9L14.3 9.6H14.2L12.6 9C13 8.7 13.4 8.5 13.9 8.5C14.4 8.5 14.9 8.7 15.3 9.1C15.7 9.5 15.9 9.9 15.9 10.4C15.7 10.7 15.5 11.2 15.2 11.6Z"/></svg>Honeybee AI · Local Workspace</span>
+            </div>
+
+            <div class="flex items-center space-x-3 text-xs text-mutedGreen">
+                <span class="flex items-center bg-surface px-2 py-0.5 rounded-full border border-borderSubtle">
+                    <span id="engineDot" class="w-2 h-2 rounded-full bg-emeraldAccent animate-pulse mr-1.5"></span>
+                    <span id="engineLabel" class="text-warmWhite font-medium">Local Engine</span>
+                </span>
+                <button id="toggleRightPanelBtn" onclick="toggleRightPanel()" class="p-1.5 hover:bg-surface rounded transition-colors text-mutedGreen hover:text-warmWhite" title="Toggle Context Panel">
+                    <i class="fa-solid fa-columns"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace Layout -->
+        <div class="flex flex-1 overflow-hidden relative">
+
+            <!-- Left Sidebar -->
+            <aside id="sidebar" class="w-60 bg-bgSecondary border-r border-borderSubtle flex flex-col justify-between transition-all duration-300 z-20 shrink-0">
+                <div class="flex flex-col h-full min-h-0">
+
+                    <div class="p-4 flex items-center justify-between border-b border-borderSubtle/50">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-7 h-7 bg-surface border border-emeraldAccent/40 rounded-lg flex items-center justify-center text-emeraldAccent shadow-glow shrink-0">
+                                <svg class="w-4 h-4 " viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.4 9C17 7.8 16.2 7 15 6.5V5H14V6.4H13.6C12.5 6.4 11.6 6.8 10.8 7.6L10.4 8L9 7.5C8.7 7.4 8.4 7.3 8 7.3C7.4 7.3 6.8 7.5 6.3 7.9C5.7 8.3 5.4 8.8 5.2 9.3C5 10 5 10.6 5.2 11.3C5.5 12 5.8 12.5 6.3 12.8C5.9 14.3 6.2 15.6 7.3 16.7C8.1 17.5 9 17.9 10.1 17.9C10.6 17.9 10.9 17.9 11.2 17.8C11.8 18.6 12.6 19.1 13.6 19.1C13.9 19.1 14.3 19.1 14.6 19C15.2 18.8 15.6 18.4 16 17.9C16.4 17.3 16.6 16.8 16.6 16.2C16.6 15.8 16.6 15.5 16.5 15.2L16 13.6L16.6 13.2C17.4 12.4 17.8 11.3 17.7 10.1H19V9H17.4M7.7 11.3C7.1 11 6.9 10.6 7.1 10C7.3 9.4 7.7 9.2 8.3 9.4L11.5 10.6C9.9 11.4 8.7 11.6 7.7 11.3M14 16.9C13.4 17.1 13 16.9 12.7 16.3C12.4 15.3 12.6 14.1 13.4 12.5L14.6 15.6C14.8 16.3 14.6 16.7 14 16.9M15.2 11.6L14.6 10V9.9L14.3 9.6H14.2L12.6 9C13 8.7 13.4 8.5 13.9 8.5C14.4 8.5 14.9 8.7 15.3 9.1C15.7 9.5 15.9 9.9 15.9 10.4C15.7 10.7 15.5 11.2 15.2 11.6Z"/></svg>
+                            </div>
+                            <span id="brandText" class="font-semibold tracking-tight text-warmWhite text-sm whitespace-nowrap">Honeybee AI</span>
+                        </div>
+                        <button onclick="toggleSidebarCollapse()" class="text-textMuted hover:text-warmWhite p-1 rounded transition-colors" title="Collapse sidebar">
+                            <i id="sidebarCollapseIcon" class="fa-solid fa-angles-left text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="p-3">
+                        <button onclick="startNewChat()" class="w-full bg-emeraldAccent hover:bg-emerald-600 text-bgMain font-medium text-xs py-2.5 px-3 rounded-lg flex items-center justify-between transition-all shadow-glow group">
+                            <span class="flex items-center">
+                                <i class="fa-solid fa-plus mr-2 text-[11px] group-hover:rotate-90 transition-transform"></i>
+                                <span id="newChatLabel">New Chat</span>
+                            </span>
+                            <kbd id="newChatKbd" class="bg-emerald-700/30 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">⌘K</kbd>
+                        </button>
+                    </div>
+
+                    <nav class="px-3 py-1 space-y-0.5 text-xs font-medium text-mutedGreen">
+                        <a href="/chat" class="nav-item flex items-center px-2.5 py-2 rounded-lg bg-surface text-warmWhite border border-borderSubtle">
+                            <i class="fa-solid fa-message w-5 text-emeraldAccent"></i><span class="collapse-hide">Chat</span>
+                        </a>
+                        <a href="/projects" class="nav-item flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors">
+                            <i class="fa-solid fa-folder-closed w-5 text-textMuted"></i><span class="collapse-hide">Projects</span>
+                        </a>
+                        <a href="/memories" class="nav-item flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors">
+                            <i class="fa-solid fa-brain w-5 text-textMuted"></i><span class="collapse-hide">Memories</span>
+                            <span class="ml-auto bg-surface text-matcha text-[10px] px-1.5 py-0.2 rounded-full border border-borderSubtle collapse-hide">12</span>
+                        </a>
+                        <a href="/tools" class="nav-item flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors">
+                            <i class="fa-solid fa-cubes w-5 text-textMuted"></i><span class="collapse-hide">Tools</span>
+                        </a>
+                        <a href="/files" class="nav-item flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors">
+                            <i class="fa-solid fa-file-lines w-5 text-textMuted"></i><span class="collapse-hide">Files</span>
+                        </a>
+                        <a href="/tasks" class="nav-item flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors">
+                            <i class="fa-solid fa-list-check w-5 text-textMuted"></i><span class="collapse-hide">Tasks</span>
+                        </a>
+                    </nav>
+
+                    <div id="searchWrap" class="px-3 mt-4 flex-1 flex flex-col min-h-0">
+                        <div class="relative mb-2">
+                            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-[11px] text-textMuted"></i>
+                            <input type="text" id="chatSearchInput" placeholder="Search conversations..." oninput="filterConversations(this.value)" class="w-full bg-surface border border-borderSubtle rounded-md pl-8 pr-3 py-1.5 text-xs text-warmWhite placeholder-textMuted focus:outline-none focus:border-emeraldAccent/50 transition-colors">
+                        </div>
+                        <div class="text-[10px] font-semibold text-textMuted uppercase tracking-wider px-2 py-1">Recent Chats</div>
+                        <div id="recentChatsList" class="space-y-0.5 overflow-y-auto flex-1 pr-1"></div>
+                    </div>
+
+                    <div class="p-3 border-t border-borderSubtle bg-bgSecondary/80">
+                        <div id="profileRow" class="flex items-center justify-between p-2 rounded-lg hover:bg-surface transition-colors cursor-pointer group" onclick="openSettingsModal()">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="relative">
+                                    <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-600 to-matcha flex items-center justify-center text-bgMain font-bold text-xs">JD</div>
+                                    <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emeraldAccent border border-bgSecondary"></span>
+                                </div>
+                                <div id="profileText" class="flex flex-col">
+                                    <span class="text-xs font-medium text-warmWhite">Jonathan Davis</span>
+                                    <span class="text-[10px] text-mutedGreen">Pro Workspace</span>
+                                </div>
+                            </div>
+                            <i class="fa-solid fa-gear text-xs text-textMuted group-hover:text-warmWhite transition-colors"></i>
+                        </div>
+                    </div>
+
+                </div>
+            </aside>
+
+            <!-- Main Chat Area -->
+            <main class="flex-1 flex flex-col bg-bgMain relative overflow-hidden min-w-0">
+
+                <header class="h-14 bg-bgMain/95 backdrop-blur border-b border-borderSubtle flex items-center justify-between px-6 z-10 shrink-0">
+                    <div class="flex items-center space-x-3 min-w-0">
+
+                        <div class="relative">
+                            <button onclick="toggleModelDropdown(event)" id="modelSelectorBtn" class="flex items-center space-x-1.5 text-xs bg-surface hover:bg-surfaceHover text-warmWhite px-2.5 py-1.5 rounded-md border border-borderSubtle transition-all">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emeraldAccent"></span>
+                                <span id="activeModelName" class="font-medium">Local Model</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-mutedGreen ml-1"></i>
+                            </button>
+
+                            <div id="modelDropdown" class="hidden absolute left-0 mt-1.5 w-56 bg-surface border border-borderSubtle rounded-lg shadow-subtle py-1 z-50 text-xs">
+                                <div class="px-3 py-1.5 text-[10px] font-semibold text-textMuted uppercase">Available Models</div>
+                                <button onclick="selectModel('Local Model')" class="model-option w-full text-left px-3 py-2 hover:bg-surfaceHover flex items-center justify-between text-warmWhite">
+                                    <div><div class="font-medium">Local Model</div><div class="text-[10px] text-mutedGreen">Served via LM Studio · :1234</div></div>
+                                    <i class="fa-solid fa-check text-emeraldAccent"></i>
+                                </button>
+                                <button onclick="selectModel('Local Model · Coder')" class="model-option w-full text-left px-3 py-2 hover:bg-surfaceHover flex items-center justify-between text-mutedGreen hover:text-warmWhite">
+                                    <div><div class="font-medium">Local Model · Coder</div><div class="text-[10px] text-textMuted">Specialized software engineering</div></div>
+                                </button>
+                                <button onclick="selectModel('Local Model · Reasoning')" class="model-option w-full text-left px-3 py-2 hover:bg-surfaceHover flex items-center justify-between text-mutedGreen hover:text-warmWhite">
+                                    <div><div class="font-medium">Local Model · Reasoning</div><div class="text-[10px] text-textMuted">Chain-of-thought friendly</div></div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <span class="hidden md:inline-flex items-center text-[11px] text-mutedGreen bg-surface/50 px-2 py-0.5 rounded border border-borderSubtle/50">
+                            <i class="fa-solid fa-bolt text-matcha mr-1 text-[10px]"></i> 127.0.0.1:1234
+                        </span>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button onclick="triggerSimulatedStream()" class="text-xs bg-surface hover:bg-surfaceHover text-matcha px-2.5 py-1.5 rounded-md border border-borderSubtle flex items-center space-x-1.5 transition-colors">
+                            <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i>
+                            <span class="hidden sm:inline">Demo Prompt</span>
+                        </button>
+                        <button onclick="shareChat()" class="text-xs bg-surface hover:bg-surfaceHover text-warmWhite px-2.5 py-1.5 rounded-md border border-borderSubtle flex items-center space-x-1.5 transition-colors">
+                            <i class="fa-solid fa-share-nodes text-[11px]"></i>
+                            <span>Share</span>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Conversation -->
+                <div id="chatWorkspace" class="flex-1 overflow-y-auto px-4 md:px-16 lg:px-28 py-6 space-y-8 scroll-smooth select-text">
+
+
+                    <div class="flex flex-col items-center justify-center h-full text-center space-y-4 animate-fade-in py-20">
+                        <div class="w-12 h-12 rounded-2xl bg-surface border border-emeraldAccent/40 flex items-center justify-center text-emeraldAccent shadow-glow">
+                            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.4 9C17 7.8 16.2 7 15 6.5V5H14V6.4H13.6C12.5 6.4 11.6 6.8 10.8 7.6L10.4 8L9 7.5C8.7 7.4 8.4 7.3 8 7.3C7.4 7.3 6.8 7.5 6.3 7.9C5.7 8.3 5.4 8.8 5.2 9.3C5 10 5 10.6 5.2 11.3C5.5 12 5.8 12.5 6.3 12.8C5.9 14.3 6.2 15.6 7.3 16.7C8.1 17.5 9 17.9 10.1 17.9C10.6 17.9 10.9 17.9 11.2 17.8C11.8 18.6 12.6 19.1 13.6 19.1C13.9 19.1 14.3 19.1 14.6 19C15.2 18.8 15.6 18.4 16 17.9C16.4 17.3 16.6 16.8 16.6 16.2C16.6 15.8 16.6 15.5 16.5 15.2L16 13.6L16.6 13.2C17.4 12.4 17.8 11.3 17.7 10.1H19V9H17.4M7.7 11.3C7.1 11 6.9 10.6 7.1 10C7.3 9.4 7.7 9.2 8.3 9.4L11.5 10.6C9.9 11.4 8.7 11.6 7.7 11.3M14 16.9C13.4 17.1 13 16.9 12.7 16.3C12.4 15.3 12.6 14.1 13.4 12.5L14.6 15.6C14.8 16.3 14.6 16.7 14 16.9M15.2 11.6L14.6 10V9.9L14.3 9.6H14.2L12.6 9C13 8.7 13.4 8.5 13.9 8.5C14.4 8.5 14.9 8.7 15.3 9.1C15.7 9.5 15.9 9.9 15.9 10.4C15.7 10.7 15.5 11.2 15.2 11.6Z"/></svg>
+                        </div>
+                        <div class="space-y-1">
+                            <h2 class="text-lg font-semibold text-warmWhite">Hello! I'm Honeybee.</h2>
+                            <p class="text-xs text-mutedGreen max-w-md">Your personal AI running locally. Type a message below to start the conversation — I remember what we discuss.</p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Composer -->
+                <div class="p-4 bg-gradient-to-t from-bgMain via-bgMain/95 to-transparent relative z-10 shrink-0">
+                    <div class="max-w-4xl mx-auto space-y-3">
+
+                        <div class="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+                            <span class="text-textMuted text-[11px] font-medium shrink-0"><i class="fa-solid fa-sparkles text-matcha mr-1"></i> Suggestions:</span>
+                            <button onclick="insertSuggestion('Search the web for latest multi-agent research papers')" class="bg-surface hover:bg-surfaceHover text-mutedGreen hover:text-warmWhite px-3 py-1 rounded-full border border-borderSubtle whitespace-nowrap transition-all">Search the web</button>
+                            <button onclick="insertSuggestion('Analyze the attached system architecture document')" class="bg-surface hover:bg-surfaceHover text-mutedGreen hover:text-warmWhite px-3 py-1 rounded-full border border-borderSubtle whitespace-nowrap transition-all">Analyze a file</button>
+                            <button onclick="insertSuggestion('Write code for secure async tool execution')" class="bg-surface hover:bg-surfaceHover text-mutedGreen hover:text-warmWhite px-3 py-1 rounded-full border border-borderSubtle whitespace-nowrap transition-all">Write code</button>
+                            <button onclick="insertSuggestion('Plan a project roadmap for Q3 milestones')" class="bg-surface hover:bg-surfaceHover text-mutedGreen hover:text-warmWhite px-3 py-1 rounded-full border border-borderSubtle whitespace-nowrap transition-all">Plan a project</button>
+                        </div>
+
+                        <div id="composerWrapper" class="bg-surface border border-borderSubtle rounded-2xl shadow-subtle p-2 transition-all duration-300 relative focus-within:border-emeraldAccent focus-within:shadow-glow">
+                            <div class="px-3 pt-2 pb-1">
+                                <textarea id="messageInput" rows="2" placeholder="Message Honeybee..." onkeydown="handleComposerKeydown(event)" oninput="autoResizeInput()" class="w-full bg-transparent text-warmWhite placeholder-textMuted text-sm focus:outline-none resize-none leading-relaxed max-h-48 overflow-y-auto"></textarea>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-2 px-2 border-t border-borderSubtle/60">
+                                <div class="flex items-center space-x-1">
+                                    <button onclick="toggleToolsDrawer()" class="p-2 hover:bg-surfaceHover text-mutedGreen hover:text-emeraldAccent rounded-lg transition-colors" title="Tools Drawer">
+                                        <i class="fa-solid fa-plus text-sm"></i>
+                                    </button>
+                                    <button onclick="triggerAttachment()" class="p-2 hover:bg-surfaceHover text-mutedGreen hover:text-warmWhite rounded-lg transition-colors" title="Attach file or image">
+                                        <i class="fa-solid fa-paperclip text-sm"></i>
+                                    </button>
+                                    <button id="voiceBtn" onclick="toggleVoiceInput()" class="p-2 hover:bg-surfaceHover text-mutedGreen hover:text-warmWhite rounded-lg transition-colors" title="Voice Input">
+                                        <i class="fa-solid fa-microphone text-sm"></i>
+                                    </button>
+                                </div>
+
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-[10px] text-textMuted hidden md:inline">Shift + Return for new line</span>
+                                    <button id="sendBtn" onclick="sendMessage()" disabled class="bg-emeraldAccent hover:bg-emerald-600 text-bgMain w-8 h-8 rounded-xl flex items-center justify-center transition-all shadow-glow font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+                                        <i class="fa-solid fa-arrow-up text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </main>
+
+            <!-- Right Context Panel -->
+            <aside id="rightContextPanel" class="w-80 bg-bgSecondary border-l border-borderSubtle flex flex-col transition-all duration-300 z-20 shrink-0">
+                <div class="p-4 border-b border-borderSubtle flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-sliders text-emeraldAccent text-xs"></i>
+                        <span class="text-xs font-semibold text-warmWhite">Context & Inspector</span>
+                    </div>
+                    <button onclick="toggleRightPanel()" class="text-textMuted hover:text-warmWhite p-1 rounded transition-colors">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                    </button>
+                </div>
+
+                <div class="flex border-b border-borderSubtle text-xs bg-surface/50">
+                    <button onclick="switchContextTab('memories')" id="tab-memories" class="flex-1 py-2 px-2 text-center font-medium text-emeraldAccent border-b-2 border-emeraldAccent transition-colors">Memories</button>
+                    <button onclick="switchContextTab('sources')" id="tab-sources" class="flex-1 py-2 px-2 text-center font-medium text-mutedGreen hover:text-warmWhite transition-colors">Sources</button>
+                    <button onclick="switchContextTab('files')" id="tab-files" class="flex-1 py-2 px-2 text-center font-medium text-mutedGreen hover:text-warmWhite transition-colors">Files</button>
+                    <button onclick="switchContextTab('tasks')" id="tab-tasks" class="flex-1 py-2 px-2 text-center font-medium text-mutedGreen hover:text-warmWhite transition-colors">Tasks</button>
+                </div>
+
+                <div id="contextTabContent" class="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
+                    <div class="flex items-center justify-center h-full text-center">
+                        <p class="text-textMuted">Nothing here yet.<br><span class="text-[11px]">Memories, sources, files and tasks will appear as you chat.</span></p>
+                    </div>
+                </div>
+
+                <div class="p-3 border-t border-borderSubtle bg-surface/50 text-[11px] text-textMuted flex items-center justify-between">
+                    <span>Auto-sync enabled</span>
+                    <span class="text-emeraldAccent">Active</span>
+                </div>
+            </aside>
+
+        </div>
+
+        <!-- Tools Drawer Modal -->
+        <div id="toolsDrawerModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in" onclick="if(event.target===this) toggleToolsDrawer()">
+            <div class="bg-bgSecondary border border-borderSubtle rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col">
+                <div class="px-5 py-4 border-b border-borderSubtle flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-7 h-7 bg-surface border border-emeraldAccent/40 rounded-lg flex items-center justify-center text-emeraldAccent">
+                            <i class="fa-solid fa-cubes text-xs"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-sm font-semibold text-warmWhite">Honeybee Tool Registry</h2>
+                            <p class="text-[11px] text-mutedGreen">Enable or configure specialized execution tools for the composer</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleToolsDrawer()" class="text-textMuted hover:text-warmWhite p-1 rounded"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto" id="toolsGrid"></div>
+
+                <div class="px-5 py-3 bg-surface border-t border-borderSubtle flex items-center justify-between text-xs">
+                    <span id="toolsCount" class="text-mutedGreen">3 active tools enabled</span>
+                    <button onclick="toggleToolsDrawer()" class="bg-emeraldAccent text-bgMain px-4 py-1.5 rounded-lg font-medium hover:bg-emerald-600 transition-colors">Done</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    </div>
+
+    <script>
+        const recentChats = [];
+
+        const tools = [
+            { name: "Web Search", desc: "Real-time web indexing and source synthesis.", icon: "fa-solid fa-globe", enabled: false },
+            { name: "Calculator", desc: "High-precision symbolic mathematics engine.", icon: "fa-solid fa-calculator", enabled: false },
+            { name: "Code Interpreter", desc: "Secure Python WASM sandbox execution.", icon: "fa-solid fa-code", enabled: false },
+            { name: "Secure Files", desc: "Document parsing and vector search.", icon: "fa-solid fa-file-shield", enabled: false },
+            { name: "Calendar Sync", desc: "Schedule planning and milestone tracking.", icon: "fa-solid fa-calendar-days", enabled: false },
+            { name: "GitHub Integration", desc: "Repository indexing and PR automation.", icon: "fa-brands fa-github", enabled: false }
+        ];
+
+        let awaitingResponse = false;
+        let voiceActive = false;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderRecentChats(recentChats);
+            renderTools();
+            autoResizeInput();
+        });
+
+        // ---------- Recent chats ----------
+        function renderRecentChats(chats) {
+            const list = document.getElementById('recentChatsList');
+            list.innerHTML = '';
+            if (!chats.length) {
+                list.innerHTML = '<div class="text-textMuted text-[11px] px-2 py-2">No conversations found.</div>';
+                return;
+            }
+            chats.forEach(chat => {
+                const div = document.createElement('button');
+                div.className = `w-full text-left px-2.5 py-2 rounded-lg text-xs cursor-pointer transition-colors flex items-center justify-between group ${chat.active ? 'bg-surface text-warmWhite border border-borderSubtle' : 'text-mutedGreen hover:bg-surface/50 hover:text-warmWhite'}`;
+                div.innerHTML = `<span class="truncate pr-2">${escapeHtml(chat.title)}</span><span class="text-[10px] text-textMuted opacity-0 group-hover:opacity-100 transition-opacity shrink-0">${chat.time}</span>`;
+                div.onclick = () => selectChat(chat.id);
+                list.appendChild(div);
+            });
+        }
+
+        function filterConversations(query) {
+            const q = query.trim().toLowerCase();
+            renderRecentChats(recentChats.filter(c => c.title.toLowerCase().includes(q)));
+        }
+
+        function selectChat(id) {
+            recentChats.forEach(c => c.active = (c.id === id));
+            renderRecentChats(recentChats);
+            const active = recentChats.find(c => c.id === id);
+            showToast(active ? `Switched to "${active.title}"` : "Switched conversation workspace");
+        }
+
+        function startNewChat() {
+            recentChats.forEach(c => c.active = false);
+            renderRecentChats(recentChats);
+            document.getElementById('chatWorkspace').innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-center space-y-4 animate-fade-in py-20">
+                    <div class="w-12 h-12 rounded-2xl bg-surface border border-emeraldAccent/40 flex items-center justify-center text-emeraldAccent shadow-glow">
+                        <i class="fa-solid fa-sparkles text-lg"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <h2 class="text-lg font-semibold text-warmWhite">Hello! I'm Honeybee.</h2>
+                        <p class="text-xs text-mutedGreen max-w-md">Your personal AI running locally. Type a message below to start the conversation — I remember what we discuss.</p>
+                    </div>
+                </div>`;
+            showToast("New conversation initialized");
+        }
+
+        // ---------- Tools ----------
+        function renderTools() {
+            const grid = document.getElementById('toolsGrid');
+            grid.innerHTML = '';
+            tools.forEach((tool, i) => {
+                const card = document.createElement('button');
+                card.className = `p-3 text-left bg-surface rounded-xl border ${tool.enabled ? 'border-emeraldAccent/40' : 'border-borderSubtle hover:border-borderHover'} flex items-start space-x-3 cursor-pointer group transition-colors`;
+                card.innerHTML = `
+                    <div class="w-8 h-8 rounded-lg ${tool.enabled ? 'bg-emerald-950/60 border border-emerald-900 text-emeraldAccent' : 'bg-bgSecondary border border-borderSubtle text-mutedGreen group-hover:text-warmWhite'} flex items-center justify-center shrink-0 mt-0.5">
+                        <i class="${tool.icon} text-xs"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-warmWhite">${tool.name}</span>
+                            <span class="w-2 h-2 rounded-full ${tool.enabled ? 'bg-emeraldAccent' : 'bg-textMuted/40'}"></span>
+                        </div>
+                        <p class="text-[11px] text-mutedGreen mt-0.5">${tool.desc}</p>
+                    </div>`;
+                card.onclick = () => {
+                    tool.enabled = !tool.enabled;
+                    renderTools();
+                    updateToolsCount();
+                };
+                grid.appendChild(card);
+            });
+            updateToolsCount();
+        }
+
+        function updateToolsCount() {
+            const n = tools.filter(t => t.enabled).length;
+            document.getElementById('toolsCount').textContent = `${n} active tool${n === 1 ? '' : 's'} enabled`;
+        }
+
+        function toggleToolsDrawer() {
+            document.getElementById('toolsDrawerModal').classList.toggle('hidden');
+        }
+
+        // ---------- Model dropdown ----------
+        function toggleModelDropdown(e) {
+            e.stopPropagation();
+            document.getElementById('modelDropdown').classList.toggle('hidden');
+            document.querySelectorAll('.memory-popup').forEach(p => p.classList.add('hidden'));
+        }
+
+        function selectModel(name) {
+            document.getElementById('activeModelName').textContent = name;
+            document.getElementById('modelDropdown').classList.add('hidden');
+            document.querySelectorAll('#modelDropdown .model-option').forEach((opt, i) => {
+                const check = opt.querySelector('i.fa-check');
+                if (check) check.remove();
+                if (opt.querySelector('.font-medium').textContent.trim() === name) {
+                    opt.insertAdjacentHTML('beforeend', '<i class="fa-solid fa-check text-emeraldAccent"></i>');
+                }
+            });
+            showToast(`Switched model to ${name}`);
+        }
+
+        // ---------- Misc toggles ----------
+        function toggleToolLog(logId) {
+            const el = document.getElementById(logId);
+            const icon = document.getElementById(`icon-${logId}`);
+            if (!el || !icon) return;
+            el.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        }
+
+        function toggleMemoryPanel(btn) {
+            const anchor = btn.closest('.memory-anchor');
+            const popup = anchor ? anchor.querySelector('.memory-popup') : null;
+            if (popup) popup.classList.toggle('hidden');
+        }
+
+        function toggleRightPanel() {
+            document.getElementById('rightContextPanel').classList.toggle('hidden');
+        }
+
+        function toggleSidebarCollapse() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            document.getElementById('sidebarCollapseIcon').className =
+                sidebar.classList.contains('collapsed')
+                    ? 'fa-solid fa-angles-right text-xs'
+                    : 'fa-solid fa-angles-left text-xs';
+        }
+
+        function switchContextTab(tabName) {
+            ['memories', 'sources', 'files', 'tasks'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                btn.className = t === tabName
+                    ? "flex-1 py-2 px-2 text-center font-medium text-emeraldAccent border-b-2 border-emeraldAccent transition-colors"
+                    : "flex-1 py-2 px-2 text-center font-medium text-mutedGreen hover:text-warmWhite transition-colors";
+            });
+
+            const content = document.getElementById('contextTabContent');
+            const empty = (what) => `<div class="flex items-center justify-center h-full text-center"><p class="text-textMuted">No ${what} yet.<br><span class="text-[11px]">They will appear here as you chat.</span></p></div>`;
+            const templates = {
+                memories: empty('memories'),
+                sources: empty('sources'),
+                files: empty('files'),
+                tasks: empty('tasks')
+            };
+            content.innerHTML = templates[tabName] || '';
+        }
+
+        // ---------- Composer ----------
+        function insertSuggestion(text) {
+            const input = document.getElementById('messageInput');
+            input.value = text;
+            autoResizeInput();
+            input.focus();
+        }
+
+        function autoResizeInput() {
+            const input = document.getElementById('messageInput');
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 192) + 'px';
+            document.getElementById('sendBtn').disabled = !input.value.trim() || awaitingResponse;
+        }
+
+        function handleComposerKeydown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function formatAIResponse(text) {
+            const escaped = escapeHtml(text);
+            const blocks = escaped.split(/```/);
+            let html = '';
+            blocks.forEach((block, i) => {
+                if (i % 2 === 1) {
+                    const lines = block.replace(/^\w*\n/, '');
+                    html += `<pre class="bg-bgSecondary border border-borderSubtle rounded-lg p-3 overflow-x-auto text-xs font-mono my-2"><code>${lines.trim()}</code></pre>`;
+                } else {
+                    const paras = block.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+                    html += paras.map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+                }
+            });
+            return html || `<p>${escaped}</p>`;
+        }
+
+        async function sendMessage() {
+            if (awaitingResponse) return;
+            const input = document.getElementById('messageInput');
+            const val = input.value.trim();
+            if (!val) return;
+
+            const workspace = document.getElementById('chatWorkspace');
+            // Clear the empty-state placeholder if present
+            const placeholder = workspace.querySelector('.justify-center');
+            if (placeholder && workspace.children.length === 1) workspace.innerHTML = '';
+
+            workspace.insertAdjacentHTML('beforeend', `
+                <div class="flex justify-end animate-fade-in">
+                    <div class="max-w-[80%] md:max-w-[70%] bg-surface border border-borderSubtle rounded-2xl px-5 py-3.5 text-sm text-warmWhite shadow-subtle">
+                        <p>${escapeHtml(val)}</p>
+                    </div>
+                </div>`);
+            input.value = '';
+            autoResizeInput();
+            workspace.scrollTop = workspace.scrollHeight;
+
+            const aiDiv = document.createElement('div');
+            aiDiv.className = "flex flex-col space-y-3 animate-fade-in pt-1";
+            aiDiv.innerHTML = `<div class="text-mutedGreen text-sm flex items-center space-x-1">
+                <span>Thinking</span>
+                <span class="typing-dot">.</span><span class="typing-dot">.</span><span class="typing-dot">.</span>
+            </div>`;
+            workspace.appendChild(aiDiv);
+            workspace.scrollTop = workspace.scrollHeight;
+
+            awaitingResponse = true;
+            document.getElementById('sendBtn').disabled = true;
+            try {
+                const response = await fetch('/api/ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: val })
+                });
+                let data = {};
+                try { data = await response.json(); } catch (_) {}
+                if (!response.ok) throw new Error(data.detail || `Request failed (${response.status})`);
+                if (!data.response || !data.response.trim()) throw new Error('The local model returned an empty response');
+                aiDiv.innerHTML = `<div class="text-warmWhite text-sm leading-relaxed max-w-3xl pr-4 space-y-3">${formatAIResponse(data.response)}</div>`;
+            } catch (error) {
+                aiDiv.innerHTML = `<div class="text-red-300 text-sm max-w-3xl pr-4 border border-red-900/40 bg-red-950/20 rounded-lg px-4 py-3">
+                    <p class="font-medium mb-1"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Request failed</p>
+                    <p>${escapeHtml(error.message)}</p>
+                </div>`;
+            } finally {
+                awaitingResponse = false;
+                document.getElementById('sendBtn').disabled = !input.value.trim();
+                workspace.scrollTop = workspace.scrollHeight;
+                input.focus();
+            }
+        }
+
+        function triggerSimulatedStream() {
+            const input = document.getElementById('messageInput');
+            if (!input.value.trim()) {
+                input.value = 'Explain the key benefits of using LangGraph for stateful AI agents.';
+                autoResizeInput();
+            }
+            showToast("Sending demo prompt to local model...");
+            sendMessage();
+        }
+
+        async function copyCodeSnippet(btn) {
+            const card = btn.closest('div.rounded-xl');
+            const code = card ? card.querySelector('pre code') : null;
+            const text = code ? code.innerText : '';
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (_) {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                textarea.remove();
+            }
+            const original = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check text-emeraldAccent"></i><span>Copied!</span>';
+            setTimeout(() => btn.innerHTML = original, 2000);
+        }
+
+        function handleAction(actionName, btn) {
+            if (actionName === 'Copy') {
+                const block = btn.closest('.flex')?.parentElement?.querySelector('.max-w-3xl');
+                if (block) {
+                    navigator.clipboard?.writeText(block.innerText).catch(() => {});
+                }
+            }
+            showToast(`Action executed: ${actionName}`);
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.classList.add('text-emeraldAccent');
+                setTimeout(() => icon.classList.remove('text-emeraldAccent'), 1000);
+            }
+        }
+
+        function shareChat() { showToast("Shareable secure link copied to clipboard"); }
+        function openSettingsModal() { showToast("Workspace settings opened"); }
+        function triggerAttachment() { showToast("File attachment dialog opened"); }
+
+        function toggleVoiceInput() {
+            voiceActive = !voiceActive;
+            const btn = document.getElementById('voiceBtn');
+            btn.className = voiceActive
+                ? "p-2 bg-emerald-950/50 text-emeraldAccent rounded-lg transition-colors"
+                : "p-2 hover:bg-surfaceHover text-mutedGreen hover:text-warmWhite rounded-lg transition-colors";
+            showToast(voiceActive ? "Voice transcription active..." : "Voice input disabled");
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toastContainer');
+            while (container.children.length >= 4) container.firstChild.remove();
+            const toast = document.createElement('div');
+            toast.className = "bg-surface border border-borderSubtle text-warmWhite px-4 py-2.5 rounded-xl shadow-subtle text-xs flex items-center space-x-2 animate-fade-in pointer-events-auto transition-opacity duration-300";
+            toast.innerHTML = `<span class="w-2 h-2 rounded-full bg-emeraldAccent shrink-0"></span><span>${escapeHtml(message)}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Close model dropdown / memory popups when clicking elsewhere; Esc closes modal
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#modelSelectorBtn') && !e.target.closest('#modelDropdown')) {
+                document.getElementById('modelDropdown').classList.add('hidden');
+            }
+            if (!e.target.closest('.memory-anchor')) {
+                document.querySelectorAll('.memory-popup').forEach(p => p.classList.add('hidden'));
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.getElementById('toolsDrawerModal').classList.add('hidden');
+                document.getElementById('modelDropdown').classList.add('hidden');
+                document.querySelectorAll('.memory-popup').forEach(p => p.classList.add('hidden'));
+            }
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                startNewChat();
+            }
+        });
+    </script>
+</body>
+</html>
