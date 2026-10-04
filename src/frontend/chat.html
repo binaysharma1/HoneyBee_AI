@@ -170,15 +170,15 @@
                         <div id="profileRow" class="flex items-center justify-between p-2 rounded-lg hover:bg-surface transition-colors cursor-pointer group" onclick="openSettingsModal()">
                             <div class="flex items-center space-x-2.5">
                                 <div class="relative">
-                                    <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-600 to-matcha flex items-center justify-center text-bgMain font-bold text-xs">JD</div>
+                                    <div id="profileAvatar" class="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-600 to-matcha flex items-center justify-center text-bgMain font-bold text-xs">HB</div>
                                     <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emeraldAccent border border-bgSecondary"></span>
                                 </div>
                                 <div id="profileText" class="flex flex-col">
-                                    <span class="text-xs font-medium text-warmWhite">Jonathan Davis</span>
+                                    <span id="profileName" class="text-xs font-medium text-warmWhite">Account</span>
                                     <span class="text-[10px] text-mutedGreen">Pro Workspace</span>
                                 </div>
                             </div>
-                            <i class="fa-solid fa-gear text-xs text-textMuted group-hover:text-warmWhite transition-colors"></i>
+                            <i onclick="logout(); event.stopPropagation();" class="fa-solid fa-right-from-bracket text-xs text-textMuted group-hover:text-red-300 transition-colors" title="Log out"></i>
                         </div>
                     </div>
 
@@ -353,7 +353,10 @@
     </div>
 
     <script>
-        const recentChats = [];
+        let recentChats = [];
+        let currentConversationId = null;
+        const token = localStorage.getItem('honeybee_token');
+        if (!token) { window.location.href = '/login'; }
 
         const tools = [
             { name: "Web Search", desc: "Real-time web indexing and source synthesis.", icon: "fa-solid fa-globe", enabled: false },
@@ -368,10 +371,44 @@
         let voiceActive = false;
 
         window.addEventListener('DOMContentLoaded', () => {
-            renderRecentChats(recentChats);
+            const user = JSON.parse(localStorage.getItem('honeybee_user') || '{}');
+            const nameEl = document.getElementById('profileName');
+            if (nameEl && user.name) nameEl.textContent = user.name;
+            const avatarEl = document.getElementById('profileAvatar');
+            if (avatarEl && user.name) avatarEl.textContent = user.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+            loadConversations();
             renderTools();
             autoResizeInput();
         });
+
+        async function loadConversations() {
+            try {
+                const res = await fetch('/api/conversations', { headers: authHeaders() });
+                if (res.status === 401) { localStorage.removeItem('honeybee_token'); window.location.href = '/login'; return; }
+                const data = await res.json();
+                recentChats = (data.conversations || []).map(c => ({ ...c, active: c.id === currentConversationId, time: relTime(c.updated_at) }));
+                renderRecentChats(recentChats);
+            } catch (e) { /* offline */ }
+        }
+
+        function relTime(iso) {
+            const d = new Date(iso);
+            const diff = (Date.now() - d.getTime()) / 1000;
+            if (diff < 60) return 'now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            return Math.floor(diff / 86400) + 'd ago';
+        }
+
+        function authHeaders() {
+            return { 'Authorization': 'Bearer ' + localStorage.getItem('honeybee_token') };
+        }
+
+        function logout() {
+            localStorage.removeItem('honeybee_token');
+            localStorage.removeItem('honeybee_user');
+            window.location.href = '/login';
+        }
 
         // ---------- Recent chats ----------
         function renderRecentChats(chats) {
@@ -395,14 +432,42 @@
             renderRecentChats(recentChats.filter(c => c.title.toLowerCase().includes(q)));
         }
 
-        function selectChat(id) {
+        async function selectChat(id) {
+            currentConversationId = id;
             recentChats.forEach(c => c.active = (c.id === id));
             renderRecentChats(recentChats);
-            const active = recentChats.find(c => c.id === id);
-            showToast(active ? `Switched to "${active.title}"` : "Switched conversation workspace");
+            const workspace = document.getElementById('chatWorkspace');
+            workspace.innerHTML = '<div class="text-textMuted text-xs text-center py-10">Loading...</div>';
+            try {
+                const res = await fetch(`/api/conversations/${id}/messages`, { headers: authHeaders() });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to load');
+                if (!data.messages.length) { resetWorkspace(); return; }
+                workspace.innerHTML = data.messages.map(m => m.role === 'user'
+                    ? `<div class="flex justify-end animate-fade-in"><div class="max-w-[80%] md:max-w-[70%] bg-surface border border-borderSubtle rounded-2xl px-5 py-3.5 text-sm text-warmWhite shadow-subtle"><p>${escapeHtml(m.content)}</p></div></div>`
+                    : `<div class="flex flex-col space-y-3 animate-fade-in pt-1"><div class="text-warmWhite text-sm leading-relaxed max-w-3xl pr-4 space-y-3">${formatAIResponse(m.content)}</div></div>`
+                ).join('');
+                workspace.scrollTop = workspace.scrollHeight;
+            } catch (e) {
+                workspace.innerHTML = `<div class="text-red-300 text-xs text-center py-10">${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        function resetWorkspace() {
+            document.getElementById('chatWorkspace').innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-center space-y-4 animate-fade-in py-20">
+                    <div class="w-12 h-12 rounded-2xl bg-surface border border-emeraldAccent/40 flex items-center justify-center text-emeraldAccent shadow-glow">
+                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.4 9C17 7.8 16.2 7 15 6.5V5H14V6.4H13.6C12.5 6.4 11.6 6.8 10.8 7.6L10.4 8L9 7.5C8.7 7.4 8.4 7.3 8 7.3C7.4 7.3 6.8 7.5 6.3 7.9C5.7 8.3 5.4 8.8 5.2 9.3C5 10 5 10.6 5.2 11.3C5.5 12 5.8 12.5 6.3 12.8C5.9 14.3 6.2 15.6 7.3 16.7C8.1 17.5 9 17.9 10.1 17.9C10.6 17.9 10.9 17.9 11.2 17.8C11.8 18.6 12.6 19.1 13.6 19.1C13.9 19.1 14.3 19.1 14.6 19C15.2 18.8 15.6 18.4 16 17.9C16.4 17.3 16.6 16.8 16.6 16.2C16.6 15.8 16.6 15.5 16.5 15.2L16 13.6L16.6 13.2C17.4 12.4 17.8 11.3 17.7 10.1H19V9H17.4M7.7 11.3C7.1 11 6.9 10.6 7.1 10C7.3 9.4 7.7 9.2 8.3 9.4L11.5 10.6C9.9 11.4 8.7 11.6 7.7 11.3M14 16.9C13.4 17.1 13 16.9 12.7 16.3C12.4 15.3 12.6 14.1 13.4 12.5L14.6 15.6C14.8 16.3 14.6 16.7 14 16.9M15.2 11.6L14.6 10V9.9L14.3 9.6H14.2L12.6 9C13 8.7 13.4 8.5 13.9 8.5C14.4 8.5 14.9 8.7 15.3 9.1C15.7 9.5 15.9 9.9 15.9 10.4C15.7 10.7 15.5 11.2 15.2 11.6Z"/></svg>
+                    </div>
+                    <div class="space-y-1">
+                        <h2 class="text-lg font-semibold text-warmWhite">Hello! I'm Honeybee.</h2>
+                        <p class="text-xs text-mutedGreen max-w-md">Your personal AI running locally. Type a message below to start the conversation — I remember what we discuss.</p>
+                    </div>
+                </div>`;
         }
 
         function startNewChat() {
+            currentConversationId = null;
             recentChats.forEach(c => c.active = false);
             renderRecentChats(recentChats);
             document.getElementById('chatWorkspace').innerHTML = `
@@ -595,14 +660,19 @@
             try {
                 const response = await fetch('/api/ai', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: val })
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify({ message: val, conversation_id: currentConversationId })
                 });
                 let data = {};
                 try { data = await response.json(); } catch (_) {}
+                if (response.status === 401) { localStorage.removeItem('honeybee_token'); window.location.href = '/login'; return; }
                 if (!response.ok) throw new Error(data.detail || `Request failed (${response.status})`);
                 if (!data.response || !data.response.trim()) throw new Error('The local model returned an empty response');
                 aiDiv.innerHTML = `<div class="text-warmWhite text-sm leading-relaxed max-w-3xl pr-4 space-y-3">${formatAIResponse(data.response)}</div>`;
+                if (data.conversation_id && data.conversation_id !== currentConversationId) {
+                    currentConversationId = data.conversation_id;
+                }
+                loadConversations();
             } catch (error) {
                 aiDiv.innerHTML = `<div class="text-red-300 text-sm max-w-3xl pr-4 border border-red-900/40 bg-red-950/20 rounded-lg px-4 py-3">
                     <p class="font-medium mb-1"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Request failed</p>

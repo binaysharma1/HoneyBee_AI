@@ -37,19 +37,20 @@
         <form onsubmit="handleSignup(event)" class="space-y-4">
             <div class="space-y-1.5">
                 <label class="text-[11px] font-medium text-mutedGreen uppercase tracking-wider">Name</label>
-                <input required type="text" placeholder="Jonathan Davis"
+                <input id="signupName" required type="text" placeholder="Jonathan Davis"
                     class="w-full bg-surface border border-borderSubtle rounded-lg px-3 py-2.5 text-sm placeholder-textMuted focus:outline-none focus:border-emeraldAccent/50 transition-colors">
             </div>
             <div class="space-y-1.5">
                 <label class="text-[11px] font-medium text-mutedGreen uppercase tracking-wider">Email</label>
-                <input required type="email" placeholder="you@example.com"
+                <input id="signupEmail" required type="email" placeholder="you@example.com"
                     class="w-full bg-surface border border-borderSubtle rounded-lg px-3 py-2.5 text-sm placeholder-textMuted focus:outline-none focus:border-emeraldAccent/50 transition-colors">
             </div>
             <div class="space-y-1.5">
                 <label class="text-[11px] font-medium text-mutedGreen uppercase tracking-wider">Password</label>
-                <input required minlength="8" type="password" placeholder="At least 8 characters"
+                <input id="signupPassword" required minlength="8" type="password" placeholder="At least 8 characters"
                     class="w-full bg-surface border border-borderSubtle rounded-lg px-3 py-2.5 text-sm placeholder-textMuted focus:outline-none focus:border-emeraldAccent/50 transition-colors">
             </div>
+            <p id="signupError" class="hidden text-xs text-red-300"></p>
             <button type="submit" class="w-full bg-emeraldAccent hover:bg-emerald-600 text-bgMain font-medium text-sm py-2.5 rounded-lg transition-colors">Create account</button>
         </form>
 
@@ -61,8 +62,31 @@
     <script>
         function handleSignup(e) {
             e.preventDefault();
-            // Auth not implemented yet — go straight to the workspace.
-            window.location.href = '/chat';
+            apiSignup();
+        }
+
+        async function apiSignup() {
+            const errEl = document.getElementById('signupError');
+            errEl.classList.add('hidden');
+            try {
+                const res = await fetch('/api/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: document.getElementById('signupName').value,
+                        email: document.getElementById('signupEmail').value,
+                        password: document.getElementById('signupPassword').value,
+                    }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || 'Signup failed');
+                localStorage.setItem('honeybee_token', data.token);
+                localStorage.setItem('honeybee_user', JSON.stringify(data.user));
+                window.location.href = '/chat';
+            } catch (err) {
+                errEl.textContent = err.message;
+                errEl.classList.remove('hidden');
+            }
         }
     </script>
 </body>

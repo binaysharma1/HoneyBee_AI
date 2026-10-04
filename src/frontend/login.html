@@ -37,7 +37,7 @@
         <form onsubmit="handleLogin(event)" class="space-y-4">
             <div class="space-y-1.5">
                 <label class="text-[11px] font-medium text-mutedGreen uppercase tracking-wider">Email</label>
-                <input required type="email" placeholder="you@example.com"
+                <input id="loginEmail" required type="email" placeholder="you@example.com"
                     class="w-full bg-surface border border-borderSubtle rounded-lg px-3 py-2.5 text-sm placeholder-textMuted focus:outline-none focus:border-emeraldAccent/50 transition-colors">
             </div>
             <div class="space-y-1.5">
@@ -45,9 +45,10 @@
                     <label class="text-[11px] font-medium text-mutedGreen uppercase tracking-wider">Password</label>
                     <a href="#" class="text-[11px] text-matcha hover:underline">Forgot?</a>
                 </div>
-                <input required type="password" placeholder="••••••••"
+                <input id="loginPassword" required type="password" placeholder="••••••••"
                     class="w-full bg-surface border border-borderSubtle rounded-lg px-3 py-2.5 text-sm placeholder-textMuted focus:outline-none focus:border-emeraldAccent/50 transition-colors">
             </div>
+            <p id="loginError" class="hidden text-xs text-red-300"></p>
             <label class="flex items-center space-x-2 text-xs text-mutedGreen cursor-pointer">
                 <input type="checkbox" class="accent-emerald-500" checked> <span>Keep me signed in</span>
             </label>
@@ -58,7 +59,7 @@
             <div class="h-px flex-1 bg-borderSubtle"></div>OR<div class="h-px flex-1 bg-borderSubtle"></div>
         </div>
 
-        <button onclick="window.location='/chat'" class="w-full bg-surface hover:bg-surfaceHover border border-borderSubtle text-sm py-2.5 rounded-lg transition-colors">
+        <button onclick="document.getElementById('loginError').textContent='GitHub OAuth coming soon.';document.getElementById('loginError').classList.remove('hidden')" class="w-full bg-surface hover:bg-surfaceHover border border-borderSubtle text-sm py-2.5 rounded-lg transition-colors">
             <i class="fa-brands fa-github mr-2"></i>Continue with GitHub
         </button>
 
@@ -70,8 +71,35 @@
     <script>
         function handleLogin(e) {
             e.preventDefault();
-            // Auth not implemented yet — go straight to the workspace.
-            window.location.href = '/chat';
+            apiAuth('/api/auth/login', {
+                email: document.getElementById('loginEmail').value,
+                password: document.getElementById('loginPassword').value,
+            }, 'loginError');
+        }
+
+        async function apiAuth(url, body, errorId) {
+            const errEl = document.getElementById(errorId);
+            errEl.classList.add('hidden');
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || 'Request failed');
+                localStorage.setItem('honeybee_token', data.token);
+                localStorage.setItem('honeybee_user', JSON.stringify(data.user));
+                window.location.href = '/chat';
+            } catch (err) {
+                errEl.textContent = err.message;
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        function githubQuickLogin() {
+            // GitHub OAuth not implemented yet.
+            apiAuth('/api/auth/login', { email: '', password: '' }, 'loginError');
         }
     </script>
 </body>

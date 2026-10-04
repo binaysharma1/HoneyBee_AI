@@ -88,6 +88,7 @@
     const SECTION = "memories";
 
     window.addEventListener('DOMContentLoaded', async () => {
+        if (!localStorage.getItem('honeybee_token')) { window.location.href = '/login'; return; }
         try {
             const res = await fetch(`/api/${SECTION}`);
             const data = await res.json();
@@ -119,7 +120,7 @@
         try {
             const res = await fetch('/api/ai', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('honeybee_token') },
                 body: JSON.stringify({ message: `[${SECTION} assistant] ${q}` })
             });
             const data = await res.json();
