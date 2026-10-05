@@ -144,7 +144,6 @@
                         </a>
                         <a href="/memories" class="nav-item flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors">
                             <i class="fa-solid fa-brain w-5 text-textMuted"></i><span class="collapse-hide">Memories</span>
-                            <span class="ml-auto bg-surface text-matcha text-[10px] px-1.5 py-0.2 rounded-full border border-borderSubtle collapse-hide">12</span>
                         </a>
                         <a href="/tools" class="nav-item flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors">
                             <i class="fa-solid fa-cubes w-5 text-textMuted"></i><span class="collapse-hide">Tools</span>
@@ -178,7 +177,6 @@
                                     <span class="text-[10px] text-mutedGreen">Pro Workspace</span>
                                 </div>
                             </div>
-                            <i onclick="logout(); event.stopPropagation();" class="fa-solid fa-right-from-bracket text-xs text-textMuted group-hover:text-red-300 transition-colors" title="Log out"></i>
                         </div>
                     </div>
 
@@ -191,31 +189,6 @@
                 <header class="h-14 bg-bgMain/95 backdrop-blur border-b border-borderSubtle flex items-center justify-between px-6 z-10 shrink-0">
                     <div class="flex items-center space-x-3 min-w-0">
 
-                        <div class="relative">
-                            <button onclick="toggleModelDropdown(event)" id="modelSelectorBtn" class="flex items-center space-x-1.5 text-xs bg-surface hover:bg-surfaceHover text-warmWhite px-2.5 py-1.5 rounded-md border border-borderSubtle transition-all">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emeraldAccent"></span>
-                                <span id="activeModelName" class="font-medium">Local Model</span>
-                                <i class="fa-solid fa-chevron-down text-[10px] text-mutedGreen ml-1"></i>
-                            </button>
-
-                            <div id="modelDropdown" class="hidden absolute left-0 mt-1.5 w-56 bg-surface border border-borderSubtle rounded-lg shadow-subtle py-1 z-50 text-xs">
-                                <div class="px-3 py-1.5 text-[10px] font-semibold text-textMuted uppercase">Available Models</div>
-                                <button onclick="selectModel('Local Model')" class="model-option w-full text-left px-3 py-2 hover:bg-surfaceHover flex items-center justify-between text-warmWhite">
-                                    <div><div class="font-medium">Local Model</div><div class="text-[10px] text-mutedGreen">Served via LM Studio · :1234</div></div>
-                                    <i class="fa-solid fa-check text-emeraldAccent"></i>
-                                </button>
-                                <button onclick="selectModel('Local Model · Coder')" class="model-option w-full text-left px-3 py-2 hover:bg-surfaceHover flex items-center justify-between text-mutedGreen hover:text-warmWhite">
-                                    <div><div class="font-medium">Local Model · Coder</div><div class="text-[10px] text-textMuted">Specialized software engineering</div></div>
-                                </button>
-                                <button onclick="selectModel('Local Model · Reasoning')" class="model-option w-full text-left px-3 py-2 hover:bg-surfaceHover flex items-center justify-between text-mutedGreen hover:text-warmWhite">
-                                    <div><div class="font-medium">Local Model · Reasoning</div><div class="text-[10px] text-textMuted">Chain-of-thought friendly</div></div>
-                                </button>
-                            </div>
-                        </div>
-
-                        <span class="hidden md:inline-flex items-center text-[11px] text-mutedGreen bg-surface/50 px-2 py-0.5 rounded border border-borderSubtle/50">
-                            <i class="fa-solid fa-bolt text-matcha mr-1 text-[10px]"></i> 127.0.0.1:1234
-                        </span>
                     </div>
 
                     <div class="flex items-center space-x-2">
@@ -468,7 +441,7 @@
                 if (!res.ok) throw new Error(data.detail || 'Failed to load');
                 if (!data.messages.length) { resetWorkspace(); return; }
                 workspace.innerHTML = data.messages.map(m => m.role === 'user'
-                    ? `<div class="flex justify-end animate-fade-in"><div class="max-w-[80%] md:max-w-[70%] bg-surface border border-borderSubtle rounded-2xl px-5 py-3.5 text-sm text-warmWhite shadow-subtle"><p>${escapeHtml(m.content)}</p></div></div>`
+                    ? `<div class="flex justify-end animate-fade-in"><div class="max-w-[80%] md:max-w-[70%] bg-surface border border-borderSubtle rounded-2xl px-5 py-3.5 text-sm text-warmWhite shadow-subtle"><p class="whitespace-pre-wrap">${escapeHtml(m.content)}</p></div></div>`
                     : `<div class="flex flex-col space-y-3 animate-fade-in pt-1"><div class="text-warmWhite text-sm leading-relaxed max-w-3xl pr-4 space-y-3">${formatAIResponse(m.content)}</div></div>`
                 ).join('');
                 workspace.scrollTop = workspace.scrollHeight;
@@ -544,26 +517,6 @@
             document.getElementById('toolsDrawerModal').classList.toggle('hidden');
         }
 
-        // ---------- Model dropdown ----------
-        function toggleModelDropdown(e) {
-            e.stopPropagation();
-            document.getElementById('modelDropdown').classList.toggle('hidden');
-            document.querySelectorAll('.memory-popup').forEach(p => p.classList.add('hidden'));
-        }
-
-        function selectModel(name) {
-            document.getElementById('activeModelName').textContent = name;
-            document.getElementById('modelDropdown').classList.add('hidden');
-            document.querySelectorAll('#modelDropdown .model-option').forEach((opt, i) => {
-                const check = opt.querySelector('i.fa-check');
-                if (check) check.remove();
-                if (opt.querySelector('.font-medium').textContent.trim() === name) {
-                    opt.insertAdjacentHTML('beforeend', '<i class="fa-solid fa-check text-emeraldAccent"></i>');
-                }
-            });
-            showToast(`Switched model to ${name}`);
-        }
-
         // ---------- Misc toggles ----------
         function toggleToolLog(logId) {
             const el = document.getElementById(logId);
@@ -633,20 +586,105 @@
             }
         }
 
+        function mdTextRich(text) {
+            let h = escapeHtml(text)
+                .replace(/`([^`\n]+)`/g, '<code class="bg-bgSecondary border border-borderSubtle px-1 py-0.5 rounded text-[12px] font-mono">$1</code>');
+            // Markdown-style links [label](url)
+            h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="text-matcha hover:underline">$1</a>');
+            h = h.replace(/\*\*([^*]+?)\*\*/g, '<strong class="text-warmWhite font-bold">$1</strong>')
+               .replace(/\*((?:(?!\*).)+?)\*/g, '<em class="italic">$1</em>');
+            return h;
+        }
+
+        function mdParagraphs(text) {
+            const lines = text.split('\n').map(l => l.trimEnd());
+            const html = [];
+            let listOpen = '';
+
+            function closeList() {
+                if (listOpen) {
+                    html.push(`</${listOpen}>`);
+                    listOpen = '';
+                }
+            }
+
+            lines.forEach(line => {
+                if (!line.trim()) { closeList(); return; }
+                const bullet = line.match(/^[-*•]\s+(.*)$/);
+                const numbered = line.match(/^\d+\.\s+(.*)$/);
+                const heading = line.match(/^(#{1,4})\s+(.*)$/);
+
+                if (bullet) {
+                    if (listOpen !== 'ul') { closeList(); html.push('<ul class="list-disc list-inside space-y-1.5 pl-1">'); listOpen = 'ul'; }
+                    html.push(`<li class="ml-4">${mdTextRich(bullet[1])}</li>`);
+                } else if (numbered) {
+                    if (listOpen !== 'ol') { closeList(); html.push('<ol class="list-decimal list-inside space-y-1.5 pl-1">'); listOpen = 'ol'; }
+                    html.push(`<li class="ml-4">${mdTextRich(numbered[1])}</li>`);
+                } else if (heading) {
+                    closeList();
+                    const lvl = heading[1].length;
+                    const tag = lvl === 1 ? 'h2' : lvl === 2 ? 'h3' : 'h4';
+                    const cls = lvl === 1 ? 'text-base font-semibold' : lvl === 2 ? 'text-sm font-semibold' : 'text-[13px] font-semibold';
+                    html.push(`<${tag} class="${cls}">${mdTextRich(heading[2])}</${tag}>`);
+                } else {
+                    closeList();
+                    html.push(`<p class="mb-3">${mdTextRich(line)}</p>`);
+                }
+            });
+            closeList();
+            return html.join('');
+        }
+
         function formatAIResponse(text) {
-            const escaped = escapeHtml(text);
-            const blocks = escaped.split(/```/);
+            const blocks = text.split(/```/);
             let html = '';
             blocks.forEach((block, i) => {
                 if (i % 2 === 1) {
-                    const lines = block.replace(/^\w*\n/, '');
-                    html += `<pre class="bg-bgSecondary border border-borderSubtle rounded-lg p-3 overflow-x-auto text-xs font-mono my-2"><code>${lines.trim()}</code></pre>`;
+                    const match = block.match(/^(.[^\n]*)\n?([\s\S]*)$/);
+                    let lang = '';
+                    let code = block;
+                    if (match) {
+                        const firstLn = match[1].trim();
+                        if (/^[a-zA-Z0-9_+-]{1,20}$/.test(firstLn)) {
+                            lang = firstLn;
+                            code = match[2];
+                        }
+                    }
+                    const escaped = escapeHtml(code).replace(/^\n+/, '');
+                    html += `<div class="rounded-xl border border-borderSubtle bg-bgSecondary overflow-hidden my-2 font-mono text-xs">
+                        <div class="bg-surface px-4 py-2 flex items-center justify-between border-b border-borderSubtle text-mutedGreen">
+                            <span class="text-[11px] font-medium text-warmWhite">${lang || 'code'}</span>
+                            <button onclick="copyGenericCode(this)" class="hover:text-warmWhite flex items-center space-x-1 px-2 py-1 rounded bg-bgSecondary border border-borderSubtle transition-colors text-[11px]">
+                                <i class="fa-regular fa-copy"></i><span>Copy</span>
+                            </button>
+                        </div>
+                        <div class="p-4 overflow-x-auto leading-relaxed"><pre><code>${escaped}</code></pre></div>
+                    </div>`;
                 } else {
                     const paras = block.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
-                    html += paras.map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+                    html += paras.map(p => mdParagraphs(p)).join('');
                 }
             });
-            return html || `<p>${escaped}</p>`;
+            return html || escapeHtml(text);
+        }
+
+        async function copyGenericCode(btn) {
+            const card = btn.closest('div.rounded-xl');
+            const code = card ? card.querySelector('pre code') : null;
+            const text = code ? code.innerText : '';
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (_) {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                textarea.remove();
+            }
+            const original = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check text-emeraldAccent"></i><span>Copied!</span>';
+            setTimeout(() => btn.innerHTML = original, 2000);
         }
 
         async function sendMessage() {
@@ -663,7 +701,7 @@
             workspace.insertAdjacentHTML('beforeend', `
                 <div class="flex justify-end animate-fade-in">
                     <div class="max-w-[80%] md:max-w-[70%] bg-surface border border-borderSubtle rounded-2xl px-5 py-3.5 text-sm text-warmWhite shadow-subtle">
-                        <p>${escapeHtml(val)}</p>
+                        <p class="whitespace-pre-wrap">${escapeHtml(val)}</p>
                     </div>
                 </div>`);
             input.value = '';
@@ -692,7 +730,22 @@
                 if (response.status === 401) { localStorage.removeItem('honeybee_token'); window.location.href = '/login'; return; }
                 if (!response.ok) throw new Error(data.detail || `Request failed (${response.status})`);
                 if (!data.response || !data.response.trim()) throw new Error('The local model returned an empty response');
-                aiDiv.innerHTML = `<div class="text-warmWhite text-sm leading-relaxed max-w-3xl pr-4 space-y-3">${formatAIResponse(data.response)}</div>`;
+                let enhanced = formatAIResponse(data.response);
+                if (data.sources && data.sources.length) {
+                    // Turn [N] tokens in generated text into clickable source links
+                    enhanced = enhanced.replace(/\[(\d+)\]/g, (match, num) => {
+                        const idx = parseInt(num, 10) - 1;
+                        const s = data.sources[idx];
+                        return s ? `<a href="${s.url}" target="_blank" rel="noopener" title="${escapeHtml(s.title)}" class="text-matcha hover:underline">[${num}]</a>` : match;
+                    });
+                    enhanced += `<div class="mt-3 text-[11px] text-textMuted space-y-1">
+                        <div class="uppercase tracking-wider text-[10px] font-semibold">Sources</div>
+                        <div class="space-y-0.5 list-decimal list-inside pl-1">
+                            ${data.sources.map((s, i) => `<div>${i + 1}. <a href="${s.url}" target="_blank" rel="noopener" title="${escapeHtml(s.title)}" class="text-matcha hover:underline">${escapeHtml(s.title)}</a></div>`).join('')}
+                        </div>
+                    </div>`;
+                }
+                aiDiv.innerHTML = `<div class="text-warmWhite text-sm leading-relaxed max-w-3xl pr-4 space-y-3">${enhanced}</div>`;
                 if (data.conversation_id && data.conversation_id !== currentConversationId) {
                     currentConversationId = data.conversation_id;
                 }
@@ -718,25 +771,6 @@
             }
             showToast("Sending demo prompt to local model...");
             sendMessage();
-        }
-
-        async function copyCodeSnippet(btn) {
-            const card = btn.closest('div.rounded-xl');
-            const code = card ? card.querySelector('pre code') : null;
-            const text = code ? code.innerText : '';
-            try {
-                await navigator.clipboard.writeText(text);
-            } catch (_) {
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                textarea.remove();
-            }
-            const original = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-check text-emeraldAccent"></i><span>Copied!</span>';
-            setTimeout(() => btn.innerHTML = original, 2000);
         }
 
         function handleAction(actionName, btn) {
@@ -787,9 +821,6 @@
 
         // Close model dropdown / memory popups when clicking elsewhere; Esc closes modal
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('#modelSelectorBtn') && !e.target.closest('#modelDropdown')) {
-                document.getElementById('modelDropdown').classList.add('hidden');
-            }
             if (!e.target.closest('.memory-anchor')) {
                 document.querySelectorAll('.memory-popup').forEach(p => p.classList.add('hidden'));
             }
@@ -798,7 +829,6 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 document.getElementById('toolsDrawerModal').classList.add('hidden');
-                document.getElementById('modelDropdown').classList.add('hidden');
                 document.querySelectorAll('.memory-popup').forEach(p => p.classList.add('hidden'));
             }
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {

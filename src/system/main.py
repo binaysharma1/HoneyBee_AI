@@ -7,10 +7,10 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import auth, memory
+from . import auth, config, memory, web
 from .database import Base, engine, get_db
 from .models import Conversation, Message, User
-from .model import ModelError, ask_messages
+from .model import ModelError, _client, ask_messages
 
 app = FastAPI(title="Honeybee AI")
 app.add_middleware(
@@ -68,6 +68,11 @@ def _page(name: str) -> FileResponse:
     return FileResponse(FRONTEND_DIR / PAGES[name], media_type="text/html")
 
 
+# @app.get("/api/health")
+# async def health() -> dict:
+#     return {"status": "ok", "provider": config.PROVIDER}
+
+
 @app.get("/", include_in_schema=False)
 async def landing() -> FileResponse:
     return _page("index")
@@ -105,7 +110,7 @@ for _section in SECTION_DATA:
     app.get(f"/api/{_section}")(_make_data_route(_section))
 
 
-# ---------- Auth ----------
+# Auth
 
 @app.get("/memories", include_in_schema=False)
 async def memories_page() -> FileResponse:
@@ -140,7 +145,7 @@ def me_api(user: User = Depends(auth.get_current_user)) -> dict:
     return {"id": user.id, "name": user.name, "email": user.email}
 
 
-# ---------- Conversations ----------
+#  Conversations 
 
 @app.get("/api/conversations")
 def list_conversations(user: User = Depends(auth.get_current_user), db: Session = Depends(get_db)) -> dict:
@@ -204,7 +209,25 @@ def delete_conversation(conversation_id: str, user: User = Depends(auth.get_curr
     return {"ok": True}
 
 
-# ---------- AI ----------
+#  AI
+
+async def _needs_web_search(message: str) -> bool:
+    """Use the LLM as a router to decide if this question needs live web data."""
+    prompt = (
+        "Does this user message specifically want us to search the web for current/live information (e.g. news, latest, today, price, weather, real-time data) or named web resources?\n"
+        "Simple explainers, creative writing, code, or normal general knowledge do NOT need the web.\n"
+        "Reply with one word: YES or NO.\n\nMessage: " + message
+    )
+    try:
+        response = await ask_messages([
+            {"role": "system", "content": "You are a routing assistant that answers with exactly one word: YES or NO."},
+            {"role": "user", "content": prompt},
+        ])
+        return response.strip().lower().startswith("yes")
+    except ModelError:
+        # Fallback: search only on explicit hints if the router fails
+        return any(k in message.lower() for k in ("search", "google", "web", "news", "latest", "today", "weather", "price"))
+
 
 @app.post("/api/ai")
 async def ai_response(
@@ -229,12 +252,16 @@ async def ai_response(
     history = [{"role": m.role, "content": m.content} for m in conv.messages]
     memories = memory.search_memory(user.id, message)
 
+    needs_web = await _needs_web_search(message)
+    web_results = web.search_web(message, limit=3) if needs_web else []
+    web_context = web.format_web_context(web_results) if web_results else ""
+
     llm_messages = list(history)
-    system_parts = [
-        "You are Honeybee, a personalized AI assistant. You remember details the user shares across sessions and use them to give helpful, contextual answers. Keep answers concise and friendly."
-    ]
+    system_parts = ["You are Honeybee, a personalized AI assistant. You remember details the user shares across sessions and use them to give helpful, contextual answers. Keep answers concise and friendly."]
     if memories:
         system_parts.append("Known facts about this user:\n- " + "\n- ".join(memories))
+    if web_context:
+        system_parts.append("Web search results you should cite:\n" + web_context + "\n\nWhen you reference web results, use [1], [2], [3] style references.")
     llm_messages.insert(0, {"role": "system", "content": "\n\n".join(system_parts)})
     llm_messages.append({"role": "user", "content": message})
 
@@ -251,7 +278,12 @@ async def ai_response(
 
     await memory.add_memory(user.id, message)
 
-    return {"response": reply, "conversation_id": conv.id, "memories_used": memories}
+    return {
+        "response": reply,
+        "conversation_id": conv.id,
+        "memories_used": memories,
+        "sources": web_results,
+    }
 
 
 @app.get("/api/ai")
