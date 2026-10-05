@@ -10,6 +10,20 @@ class ModelError(RuntimeError):
 
 
 def _client() -> ChatOpenAI:
+	if config.PROVIDER == "nvidia":
+		return ChatOpenAI(
+			model=config.NVIDIA_MODEL,
+			base_url=config.NVIDIA_BASE_URL,
+			api_key=config.NVIDIA_API_KEY,
+			temperature=0.2,
+		)
+	if config.PROVIDER == "groq":
+		return ChatOpenAI(
+			model=config.GROQ_MODEL,
+			base_url=config.GROQ_BASE_URL,
+			api_key=config.GROQ_API_KEY,
+			temperature=0.2,
+		)
 	return ChatOpenAI(
 		model=config.MODEL,
 		base_url=config.MODEL_URL,
@@ -30,11 +44,19 @@ async def ask_messages(messages: list[dict[str, str]]) -> str:
 	try:
 		result = await asyncio.to_thread(_client().invoke, lc_messages)
 	except Exception as error:
-		raise ModelError(
-			"The local model is unavailable. Start an OpenAI-compatible model on port 1234."
-		) from error
+		if config.PROVIDER == "nvidia":
+			raise ModelError("The NVIDIA cloud model could not be reached. Check your network/VPN and NVIDIA_API_KEY.") from error
+		if config.PROVIDER == "groq":
+			raise ModelError("Groq could not generate a response. Check GROQ_API_KEY / GROQ_MODEL.") from error
+		raise ModelError("The local model is unavailable. Start an OpenAI-compatible model on port 1234.") from error
 
 	content = result.content
 	if not isinstance(content, str) or not content.strip():
 		raise ModelError("The local model returned an empty response")
 	return content.strip()
+
+
+
+
+
+# NVIDIA NIM cloud model support lives here; credentials are in .env only.

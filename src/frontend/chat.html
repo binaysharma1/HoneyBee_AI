@@ -391,6 +391,23 @@
             } catch (e) { /* offline */ }
         }
 
+        async function deleteChat(id, title) {
+            if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+            try {
+                const res = await fetch(`/api/conversations/${id}`, { method: 'DELETE', headers: authHeaders() });
+                if (res.status === 401) { localStorage.removeItem('honeybee_token'); window.location.href = '/login'; return; }
+                if (!res.ok) throw new Error((await res.json()).detail || 'Delete failed');
+                if (currentConversationId === id) {
+                    currentConversationId = null;
+                    resetWorkspace();
+                }
+                loadConversations();
+                showToast('Chat deleted');
+            } catch (e) {
+                showToast(e.message);
+            }
+        }
+
         function relTime(iso) {
             const d = new Date(iso);
             const diff = (Date.now() - d.getTime()) / 1000;
@@ -421,8 +438,15 @@
             chats.forEach(chat => {
                 const div = document.createElement('button');
                 div.className = `w-full text-left px-2.5 py-2 rounded-lg text-xs cursor-pointer transition-colors flex items-center justify-between group ${chat.active ? 'bg-surface text-warmWhite border border-borderSubtle' : 'text-mutedGreen hover:bg-surface/50 hover:text-warmWhite'}`;
-                div.innerHTML = `<span class="truncate pr-2">${escapeHtml(chat.title)}</span><span class="text-[10px] text-textMuted opacity-0 group-hover:opacity-100 transition-opacity shrink-0">${chat.time}</span>`;
+                div.innerHTML = `<span class="truncate pr-2">${escapeHtml(chat.title)}</span>
+                    <span class="flex items-center space-x-1.5 shrink-0">
+                        <span class="text-[10px] text-textMuted">${chat.time}</span>
+                        <button data-delete="${chat.id}" class="text-textMuted hover:text-red-400 text-xs px-1 py-0.5 rounded transition-opacity" title="Delete chat">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </span>`;
                 div.onclick = () => selectChat(chat.id);
+                div.querySelector('[data-delete]').onclick = (e) => { e.stopPropagation(); deleteChat(chat.id, chat.title); };
                 list.appendChild(div);
             });
         }
