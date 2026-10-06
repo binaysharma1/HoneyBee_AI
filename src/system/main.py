@@ -68,9 +68,14 @@ def _page(name: str) -> FileResponse:
     return FileResponse(FRONTEND_DIR / PAGES[name], media_type="text/html")
 
 
-# @app.get("/api/health")
-# async def health() -> dict:
-#     return {"status": "ok", "provider": config.PROVIDER}
+@app.get("/api/health")
+async def health() -> dict:
+    return {"status": "ok", "provider": config.PROVIDER, "system": "running"}
+
+
+@app.get("/health", include_in_schema=False)
+async def health_alias() -> dict:
+    return {"status": "ok", "provider": config.PROVIDER, "system": "running"}
 
 
 @app.get("/", include_in_schema=False)

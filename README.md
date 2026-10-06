@@ -1,4 +1,4 @@
-# Honeybee AI 🐝
+# Honeybee AI
 
 A personalized, local-first AI chat workspace with long-term memory, built on FastAPI, PostgreSQL + pgvector, mem0, and any OpenAI-compatible model endpoint (local or cloud).
 
@@ -10,8 +10,10 @@ A personalized, local-first AI chat workspace with long-term memory, built on Fa
 - **Real chat history** — full conversation and message rows stored in PostgreSQL, replayed into the LLM.
 - **Long-term memory with mem0 + pgvector** — every message is distilled into short facts and stored via mem0 on the same Postgres (embeddings); next messages retrieve the relevant facts before generating.
 - **Dedup on insert** — simple containment + difflib + word-overlap similarity checks stop repeat facts ("Hobby: Hiking" vs "Hiking - Hobby").
-- **Optional cloud model** — Ollama-style local via LM Studio, or Groq free tier for fast responses; switching via one `.env` variable.
-- **Beautiful UI** — landing page, login/signup, chat interface with sidebar Recent Chats, right Context panel, tools drawer, and five app sections (Projects, Memories, Tools, Files, Tasks), all with real backend endpoints and live API wiring.
+- **Optional cloud model** — Groq free tier, NVIDIA NIM, or local via LM Studio; switching via one `.env` variable.
+- **Real-time web search with sources** — messages that look current/live are routed through `ddgs` to DuckDuckGo results; sources are returned to the UI and the model is instructed to cite them as `[1]`, `[2]`, and `[3]`.
+- **Model-agnostic** — same FastAPI routes work with `.env`-selected providers (`groq`, `nvidia`, `local`).
+- **Web workspace** — landing page, login/signup, chat interface with Recent Chats, Context & Inspector panel, tools drawer, and dedicated Projects, Memories, Tools, Files, and Tasks pages.
 
 ---
 
@@ -20,10 +22,11 @@ A personalized, local-first AI chat workspace with long-term memory, built on Fa
 | Layer | Tech |
 |---|---|
 | API | FastAPI |
-| DB | PostgreSQL 18, SQLAlchemy 2, Alembic |
+| DB | PostgreSQL, SQLAlchemy 2, Alembic |
 | Auth | bcrypt, PyJWT HS256 |
 | Memory | mem0ai with pgvector provider |
-| LLM | Groq free or local LM Studio |
+| LLM | Groq, NVIDIA NIM, or local LM Studio |
+| Search | `ddgs` DuckDuckGo search |
 | Frontend | Tailwind CSS CDN, Font Awesome |
 
 ---
@@ -33,22 +36,48 @@ A personalized, local-first AI chat workspace with long-term memory, built on Fa
 ```
 src/
 ├── frontend/
-│   ├── index.html          # landing
-│   ├── login.html / signup.html
-│   ├── chat.html           # main workspace
-│   └── projects/memories/tools/files/tasks.html
+│   ├── index.html          # landing page
+│   ├── login.html          # JWT login
+│   ├── signup.html         # account creation
+│   ├── chat.html           # main chat workspace
+│   └── projects.html / memories.html / tools.html / files.html / tasks.html
 └── system/
-    ├── main.py             # routes / ai endpoint / auth / conversations / memories
+    ├── main.py             # FastAPI app, pages, auth, chat, conversations, memories
     ├── database.py         # engine + session
     ├── models.py           # User / Conversation / Message SQLAlchemy models
     ├── auth.py             # hash, jwt, get_current_user
     ├── memory.py           # mem0 client + store + dedup + search + facts
-    ├── model.py            # LLM client per provider
+    ├── model.py             # OpenAI-compatible LLM client per provider
     ├── config.py           # dotenv loader + defaults
-    └── model.py            # ChatOpenAI factory logic
+    └── web.py               # DuckDuckGo search and source formatting
 alembic.ini / alembic/      # migrations pointing at same DB
+pyproject.toml / uv.lock     # package metadata and locked dependencies
 .env                        # secrets (not committed)
 ```
+
+## Web and API surface
+
+`system.main` serves the frontend and exposes the backend used by the pages:
+
+| Route | Purpose |
+|---|---|
+| `GET /` | Landing page |
+| `GET /login`, `GET /signup` | Authentication pages |
+| `GET /chat` or `GET /ai` | Chat workspace |
+| `GET /projects`, `/memories`, `/tools`, `/files`, `/tasks` | Workspace sections |
+| `POST /api/auth/signup` | Create a user and issue a JWT |
+| `POST /api/auth/login` | Authenticate and issue a JWT |
+| `GET /api/auth/me` | Return the authenticated user |
+| `GET /api/conversations` | List the user's conversations |
+| `POST /api/conversations` | Create an empty conversation |
+| `GET /api/conversations/{id}/messages` | Load conversation history |
+| `DELETE /api/conversations/{id}` | Delete a conversation and its messages |
+| `POST /api/ai` | Generate a reply, persist the exchange, search memory, and optionally search the web |
+| `GET /api/memories` | List stored facts for the authenticated user |
+| `DELETE /api/memories/{id}` / `DELETE /api/memories` | Delete one or all stored facts |
+| `GET /api/health` or `/health` | Report application and provider status |
+
+The Projects, Tools, Files, and Tasks data endpoints currently return the empty `SECTION_DATA` shape from `main.py`. Their pages and AI query controls are wired into the workspace, but persistent CRUD for those sections is not implemented yet.
 
 ## Setup (Arch)
 
@@ -64,12 +93,12 @@ uv sync
 ### 2. Create the honeybee database
 ```
 psql -h 127.0.0.1 -U postgres -c "CREATE DATABASE honeybee_ai"
-psql -h 127.0.0.1 -U postgres -d honeybee_ai -c "CREATE EXTENSION vector;"
+psql -h 127.0.0.1 -U postgres -d honeybee_ai -c "CREATE EXTENSION IF NOT EXISTS vector;"
 ```
 
 ### 3. `.env`
 ```
-DATABASE_URL=postgresql+psycopg://postgres:<your-password>@127.0.0.1:5432/HoneyBee_ai
+DATABASE_URL=postgresql+psycopg://postgres:<your-password>@127.0.0.1:5432/honeybee_ai
 JWT_SECRET=009e2...   # or any strong random string
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_DAYS=7
@@ -86,7 +115,7 @@ HONEYBEE_MODEL=phi-3.5-mini-instruct
 HONEYBEE_MODEL_URL=http://127.0.0.1:1234/v1
 HONEYBEE_API_KEY=lm-studio
 
-# nvidia (if network is reachable)
+# nvidia (if network access is available)
 NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
 NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 NVIDIA_API_KEY=nvapi-...
@@ -111,19 +140,32 @@ Open `http://127.0.0.1:8000` in browser. Signup first; `/chat` then shows the wo
 
 ---
 
-## How memory works
+## How chat and memory work
 
 Every `POST /api/ai` call, in order :
 
 1. Load conversation_id messages from `messages` → chat history
-2. `search_memory(user_id, query)` → pgvector rows via cosine similarity + keyword boost
+2. `search_memory(user_id, query)` → mem0/pgvector rows via similarity plus a keyword boost
 3. Prompt: `system (identity + facts)` + conversation history + user message to LLM provider
-4. After the LLM responds, save the exchange in `messages`
-5. `add_memory(...)` on that same message
+4. `_needs_web_search(...)` decides whether the request needs live data; `web.search_web(...)` fetches up to three DuckDuckGo results when needed
+5. After the LLM responds, save the exchange in `messages`
+6. `add_memory(...)` on the user's message
    - extract novel facts with compact LLM pass (`extract_facts`)
    - drop exact/substring/semantic duplicates and junk formatting
    - if still new, store in `honeybee_memories` (pgvector, 768-dim Gemma embeddings)
-6. Facts are also returned via `GET /api/memories` and deleted via `DELETE /api/memories/{id}`.
+7. Facts are also returned via `GET /api/memories` and deleted via `DELETE /api/memories/{id}`.
+
+If mem0 or pgvector cannot initialize, `memory.py` logs the failure and chat continues without long-term memory.
+
+## Recent development
+
+The current `main` history includes these milestones:
+
+- `d258409` — added web search integration, NVIDIA provider support, frontend maintenance, and locked dependencies.
+- `8ccadb8` — expanded the README and documented the database-backed AI workspace.
+- `75537f5` — fixed model and memory integration, including provider configuration and fact deduplication.
+- `77110de` — added authentication, SQLAlchemy persistence, Alembic migrations, and the database models.
+- `0d27b5a` — connected the frontend pages to backend routes and replaced the original frontend entry point.
 
 ## Dev commands
 
