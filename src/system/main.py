@@ -1,5 +1,7 @@
+import logging
 from pathlib import Path
 
+import logging
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
@@ -7,12 +9,15 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import auth, config, memory, web
+from fastapi import UploadFile, File, Form
+
+from . import auth, config, documents, memory, web
 from .database import Base, engine, get_db
 from .models import Conversation, Message, User
 from .model import ModelError, _client, ask_messages
 
 app = FastAPI(title="Honeybee AI")
+logger = logging.getLogger(__name__)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -68,14 +73,42 @@ def _page(name: str) -> FileResponse:
     return FileResponse(FRONTEND_DIR / PAGES[name], media_type="text/html")
 
 
-@app.get("/api/health")
-async def health() -> dict:
-    return {"status": "ok", "provider": config.PROVIDER, "system": "running"}
+@app.post("/api/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    conversation_id: str | None = Form(None),
+    user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    name = file.filename or "document"
+    try:
+        contents = await file.read()
+        summary, chunks = documents.extract_facts_for_file(name, contents)
+        # Link file facts to the specific conversation
+        if conversation_id:
+            conv = db.get(Conversation, conversation_id)
+            if conv is None or conv.user_id != user.id:
+                raise HTTPException(status_code=404, detail="Conversation not found")
+        else:
+            conv = Conversation(user_id=user.id, title=name[:60])
+            db.add(conv)
+            db.commit()
+            db.refresh(conv)
+        mem = memory._get_memory()
+        stored = memory.add_doc_chunks(user.id, conv.id, [summary, *chunks[:120]]) if mem else 0
+        return {"filename": name, "stored_chunks": stored, "preview": summary[:400], "conversation_id": conv.id}
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@app.get("/health", include_in_schema=False)
-async def health_alias() -> dict:
-    return {"status": "ok", "provider": config.PROVIDER, "system": "running"}
+# @app.get("/api/health")
+# async def health() -> dict:
+#     return {"status": "ok", "provider": config.PROVIDER, "system": "running"}
+
+
+# @app.get("/health", include_in_schema=False)
+# async def health_alias() -> dict:
+#     return {"status": "ok", "provider": config.PROVIDER, "system": "running"}
 
 
 @app.get("/", include_in_schema=False)
@@ -255,7 +288,11 @@ async def ai_response(
         db.refresh(conv)
 
     history = [{"role": m.role, "content": m.content} for m in conv.messages]
-    memories = memory.search_memory(user.id, message)
+    memories = memory.search_memory(user.id, message, conversation_id=conv.id)
+    doc_facts = memory.search_doc_chunks(user.id, message, conversation_id=conv.id)
+
+    if doc_facts:
+        memories = memories + doc_facts
 
     needs_web = await _needs_web_search(message)
     web_results = web.search_web(message, limit=3) if needs_web else []

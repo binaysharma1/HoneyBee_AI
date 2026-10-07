@@ -241,9 +241,10 @@
                                     <button onclick="toggleToolsDrawer()" class="p-2 hover:bg-surfaceHover text-mutedGreen hover:text-emeraldAccent rounded-lg transition-colors" title="Tools Drawer">
                                         <i class="fa-solid fa-plus text-sm"></i>
                                     </button>
-                                    <button onclick="triggerAttachment()" class="p-2 hover:bg-surfaceHover text-mutedGreen hover:text-warmWhite rounded-lg transition-colors" title="Attach file or image">
+                                    <button onclick="triggerAttachment()" class="p-2 hover:bg-surfaceHover text-mutedGreen hover:text-warmWhite rounded-lg transition-colors" title="Attach file">
                                         <i class="fa-solid fa-paperclip text-sm"></i>
                                     </button>
+                                    <input type="file" id="fileInput" class="hidden" onchange="handleFileUpload(event)">
                                     <button id="voiceBtn" onclick="toggleVoiceInput()" class="p-2 hover:bg-surfaceHover text-mutedGreen hover:text-warmWhite rounded-lg transition-colors" title="Voice Input">
                                         <i class="fa-solid fa-microphone text-sm"></i>
                                     </button>
@@ -790,7 +791,52 @@
 
         function shareChat() { showToast("Shareable secure link copied to clipboard"); }
         function openSettingsModal() { showToast("Workspace settings opened"); }
-        function triggerAttachment() { showToast("File attachment dialog opened"); }
+        function triggerAttachment() {
+            document.getElementById('fileInput').click();
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            const token = localStorage.getItem('honeybee_token');
+            const form = new FormData();
+            form.append('file', file);
+            if (currentConversationId) form.append('conversation_id', currentConversationId);
+            const workspace = document.getElementById('chatWorkspace');
+            const pending = document.createElement('div');
+            pending.className = 'px-4 md:px-20 lg:px-32';
+            pending.innerHTML = `<div class="bg-surface/50 border border-borderSubtle rounded-lg p-3 text-[11px] text-mutedGreen inline-flex items-center">
+                <i class="fa-solid fa-circle-notch fa-spin mr-2 text-emeraldAccent"></i>
+                Analyzing ${escapeHtml(file.name)}...
+            </div>`;
+            workspace.appendChild(pending);
+            workspace.scrollTop = workspace.scrollHeight;
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: form,
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('honeybee_token') }
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || 'Upload failed');
+                workspace.removeChild(pending);
+                const msg = document.createElement('div');
+                msg.className = 'px-4 md:px-20 lg:px-32';
+                msg.innerHTML = `<div class="bg-surface/50 border border-borderSubtle rounded-lg p-3 text-[11px] text-mutedGreen"><i class="fa-solid fa-file-circle-check mr-1.5 text-emeraldAccent"></i>Analyzed ${escapeHtml(file.name)} (${data.stored_chunks} facts into memory)</div>`;
+                workspace.appendChild(msg);
+                workspace.scrollTop = workspace.scrollHeight;
+                showToast(`Uploaded ${file.name}: ${data.stored_chunks || 0} facts added`);
+                if (data.conversation_id && data.conversation_id !== currentConversationId) {
+                    currentConversationId = data.conversation_id;
+                    loadConversations();
+                }
+            } catch (err) {
+                if (pending.parentNode) workspace.removeChild(pending);
+                showToast('Upload failed: ' + err.message, false);
+            } finally {
+                event.target.value = '';
+            }
+        }
 
         function toggleVoiceInput() {
             voiceActive = !voiceActive;

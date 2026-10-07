@@ -79,7 +79,7 @@ def _get_memory():
 
 _NON_PERSONAL = ("no demographic", "query timestamped", "no information", "no specific", "no personal", "no factual")
 
-def search_memory(user_id: str, query: str, limit: int = 10) -> list[str]:
+def search_memory(user_id: str, query: str, limit: int = 10, conversation_id: str | None = None) -> list[str]:
     mem = _get_memory()
     if mem is None:
         return []
@@ -95,6 +95,10 @@ def search_memory(user_id: str, query: str, limit: int = 10) -> list[str]:
             text = item.get("memory") or item.get("data")
             if not text or any(bad in text.lower() for bad in _NON_PERSONAL):
                 continue
+            metadata = item.get("metadata") or {}
+            doc_conv = metadata.get("conversation_id") if isinstance(metadata, dict) else None
+            if doc_conv and (conversation_id is None or doc_conv != conversation_id):
+                continue
             boost = 0.0
             fact_words = set(text.lower().split())
             boost += 0.2 * len(query_words & fact_words)
@@ -104,6 +108,119 @@ def search_memory(user_id: str, query: str, limit: int = 10) -> list[str]:
         return [text for _, text in ranked[:limit]]
     except Exception as exc:  # noqa: BLE001
         logger.warning("mem0 search failed: %s", exc)
+        return []
+
+
+# ---------- Document vector store (separate collection) ----------
+_DOCS_MEMORY = None
+_DOCS_FAILED = False
+
+
+def _get_docs_memory():
+    global _DOCS_MEMORY, _DOCS_FAILED
+    if _DOCS_MEMORY is not None or _DOCS_FAILED:
+        return _DOCS_MEMORY
+    try:
+        from mem0 import Memory
+
+        _DOCS_MEMORY = Memory.from_config({
+            "llm": (
+                {
+                    "provider": "openai",
+                    "config": {
+                        "model": config.NVIDIA_MODEL,
+                        "openai_base_url": config.NVIDIA_BASE_URL,
+                        "api_key": config.NVIDIA_API_KEY,
+                    },
+                }
+                if config.PROVIDER == "nvidia"
+                else (
+                    {
+                        "provider": "openai",
+                        "config": {
+                            "model": config.GROQ_MODEL,
+                            "openai_base_url": config.GROQ_BASE_URL,
+                            "api_key": config.GROQ_API_KEY,
+                        },
+                    }
+                    if config.PROVIDER == "groq"
+                    else {
+                        "provider": "lmstudio",
+                        "config": {
+                            "model": config.MODEL,
+                            "lmstudio_base_url": config.MODEL_URL,
+                            "api_key": config.API_KEY,
+                            "lmstudio_response_format": {"type": "text"},
+                        },
+                    }
+                )
+            ),
+            "embedder": {
+                "provider": "openai",
+                "config": {
+                    "model": config.EMBEDDING_MODEL,
+                    "openai_base_url": config.EMBEDDING_BASE_URL,
+                    "api_key": config.API_KEY,
+                },
+            },
+            "vector_store": {
+                "provider": "pgvector",
+                "config": {
+                    "connection_string": config.DATABASE_URL.replace("postgresql+psycopg://", "postgresql://"),
+                    "collection_name": "honeybee_docs",
+                    "embedding_model_dims": config.EMBEDDING_DIMS,
+                },
+            },
+            "history_db_path": ":memory:",
+        })
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("mem0 docs store unavailable: %s", exc)
+        _DOCS_FAILED = True
+    return _DOCS_MEMORY
+
+
+def add_doc_chunks(user_id: str, conversation_id: str, chunks: list[str]) -> int:
+    docs = _get_docs_memory()
+    if docs is None:
+        return 0
+    stored = 0
+    for chunk in chunks:
+        if not chunk or not chunk.strip():
+            continue
+        try:
+            docs.add(chunk, user_id=user_id, metadata={"conversation_id": conversation_id}, infer=False)
+            stored += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("mem0 docs add failed: %s", exc)
+    return stored
+
+
+def search_doc_chunks(user_id: str, query: str, conversation_id: str, limit: int = 10) -> list[str]:
+    docs = _get_docs_memory()
+    if docs is None:
+        return []
+    try:
+        results = docs.search(query, filters={"user_id": user_id}, top_k=20)
+        items = results.get("results", results) if isinstance(results, dict) else results
+        ranked: list[tuple[float, str]] = []
+        query_words = set(query.lower().split())
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            text = item.get("memory") or item.get("data")
+            if not text:
+                continue
+            metadata = item.get("metadata") or {}
+            if not isinstance(metadata, dict) or metadata.get("conversation_id") != conversation_id:
+                continue
+            boost = 0.0
+            fact_words = set(text.lower().split())
+            boost += 0.2 * len(query_words & fact_words)
+            ranked.append((float(item.get("score", 0)) + boost, text))
+        ranked.sort(key=lambda x: x[0], reverse=True)
+        return [text for _, text in ranked[:limit]]
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("mem0 docs search failed: %s", exc)
         return []
 
 
