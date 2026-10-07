@@ -3,23 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Honeybee AI — Memories</title>
+    <title>Honeybee AI — Vibe</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310B981'><path d='M17.4 9C17 7.8 16.2 7 15 6.5V5H14V6.4H13.6C12.5 6.4 11.6 6.8 10.8 7.6L10.4 8L9 7.5C8.7 7.4 8.4 7.3 8 7.3C7.4 7.3 6.8 7.5 6.3 7.9C5.7 8.3 5.4 8.8 5.2 9.3C5 10 5 10.6 5.2 11.3C5.5 12 5.8 12.5 6.3 12.8C5.9 14.3 6.2 15.6 7.3 16.7C8.1 17.5 9 17.9 10.1 17.9C10.6 17.9 10.9 17.9 11.2 17.8C11.8 18.6 12.6 19.1 13.6 19.1C13.9 19.1 14.3 19.1 14.6 19C15.2 18.8 15.6 18.4 16 17.9C16.4 17.3 16.6 16.8 16.6 16.2C16.6 15.8 16.6 15.5 16.5 15.2L16 13.6L16.6 13.2C17.4 12.4 17.8 11.3 17.7 10.1H19V9H17.4M7.7 11.3C7.1 11 6.9 10.6 7.1 10C7.3 9.4 7.7 9.2 8.3 9.4L11.5 10.6C9.9 11.4 8.7 11.6 7.7 11.3M14 16.9C13.4 17.1 13 16.9 12.7 16.3C12.4 15.3 12.6 14.1 13.4 12.5L14.6 15.6C14.8 16.3 14.6 16.7 14 16.9M15.2 11.6L14.6 10V9.9L14.3 9.6H14.2L12.6 9C13 8.7 13.4 8.5 13.9 8.5C14.4 8.5 14.9 8.7 15.3 9.1C15.7 9.5 15.9 9.9 15.9 10.4C15.7 10.7 15.5 11.2 15.2 11.6Z'/></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script>
-        tailwind.config = {
-            theme: { extend: {
-                colors: {
-                    bgMain: '#0B0F0D', bgSecondary: '#111713', surface: '#151C18', surfaceHover: '#1C2620',
-                    borderSubtle: '#1E2B23', borderHover: '#2A3C32', emeraldAccent: '#10B981', matcha: '#34D399',
-                    limeAccent: '#A3E635', warmWhite: '#F3F4F6', mutedGreen: '#9CA3AF', textMuted: '#6B7280'
-                },
-                fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
-                boxShadow: { glow: '0 0 25px -5px rgba(16, 185, 129, 0.2)', subtle: '0 4px 20px -2px rgba(0, 0, 0, 0.5)' }
-            } }
+        async function loadVibe() {
+            try {
+                const res = await fetch('/api/users/me/vibe', {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('honeybee_token') }
+                });
+                if (res.status === 401) { window.location.href = '/login'; return; }
+                const data = await res.json();
+                document.getElementById('vibePrompt').value = data.vibe_prompt || '';
+            } catch (e) {
+                document.getElementById('vibeToast').textContent = 'Failed to load vibe';
+                document.getElementById('vibeToast').classList.remove('hidden');
+            }
         }
+
+        async function saveVibe() {
+            const prompt = document.getElementById('vibePrompt').value.trim();
+            const btn = document.getElementById('vibeSaveBtn');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                const res = await fetch('/api/users/me/vibe', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('honeybee_token')
+                    },
+                    body: JSON.stringify({ vibe_prompt: prompt })
+                });
+                if (!res.ok) throw new Error(await res.text());
+                document.getElementById('vibeToast').textContent = 'Vibe saved';
+                document.getElementById('vibeToast').classList.remove('hidden');
+                setTimeout(() => document.getElementById('vibeToast').classList.add('hidden'), 3000);
+            } catch (e) {
+                document.getElementById('vibeToast').textContent = 'Save failed: ' + (e.message || 'unknown');
+                document.getElementById('vibeToast').classList.remove('hidden');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Save';
+            }
+        }
+
+        async function resetVibe() {
+            if (!confirm('This will clear your current vibe prompt. Continue?')) return;
+            document.getElementById('vibePrompt').value = '';
+            await saveVibe();
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('honeybee_token')) { window.location.href = '/login'; return; }
+            await loadVibe();
+        });
     </script>
     <style>
         ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #1E2B23; border-radius: 3px; }
@@ -51,93 +89,43 @@
         <aside class="w-52 bg-bgSecondary border-r border-borderSubtle flex flex-col p-3 space-y-0.5 text-xs font-medium text-mutedGreen shrink-0">
             <a href="/chat" class="flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors"><i class="fa-solid fa-message w-5 text-textMuted"></i><span>Chat</span></a>
             <a href="/projects" class="flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors"><i class="fa-solid fa-folder-closed w-5 text-textMuted"></i><span>Projects</span></a>
-            <a href="/memories" class="flex items-center px-2.5 py-2 rounded-lg bg-surface text-warmWhite border border-borderSubtle"><i class="fa-solid fa-brain w-5 text-emeraldAccent"></i><span>Memories</span></a>
+            <a href="/memories" class="flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors"><i class="fa-solid fa-brain w-5 text-textMuted"></i><span>Memories</span></a>
             <a href="/tools" class="flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors"><i class="fa-solid fa-cubes w-5 text-textMuted"></i><span>Tools</span></a>
             <a href="/files" class="flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors"><i class="fa-solid fa-file-lines w-5 text-textMuted"></i><span>Files</span></a>
             <a href="/tasks" class="flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors"><i class="fa-solid fa-list-check w-5 text-textMuted"></i><span>Tasks</span></a>
-            <a href="/vibe" class="flex items-center px-2.5 py-2 rounded-lg hover:bg-surface/60 hover:text-warmWhite transition-colors"><i class="fa-solid fa-wand-magic-sparkles w-5 text-textMuted"></i><span>Vibe</span></a>
-        </aside>
+                    <a href="/vibe" class="flex items-center px-2.5 py-2 rounded-lg bg-surface text-warmWhite border border-borderSubtle"><i class="fa-solid fa-wand-magic-sparkles w-5 text-emeraldAccent"></i><span>Vibe</span></a>
+</aside>
 
         <main class="flex-1 overflow-y-auto px-8 md:px-16 py-10">
             <div class="max-w-3xl mx-auto space-y-8">
                 <div class="space-y-2">
                     <div class="flex items-center space-x-3">
                         <div class="w-9 h-9 bg-surface border border-emeraldAccent/30 rounded-xl flex items-center justify-center text-emeraldAccent">
-                            <i class="fa-solid fa-brain text-sm"></i>
+                            <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
                         </div>
-                        <h1 class="text-xl font-semibold tracking-tight">Memories</h1>
+                        <h1 class="text-xl font-semibold tracking-tight">Vibe Maker</h1>
                     </div>
-                    <p class="text-sm text-mutedGreen">Personal facts and preferences stored via mem0 in your PostgreSQL vector store.</p>
+                    <p class="text-sm text-mutedGreen">Set a style prompt and a few examples. Every Honeybee reply will obey this vibe.</p>
                 </div>
 
-                <div id="itemsList" class="space-y-2.5"></div>
-
-                <div class="border-t border-borderSubtle pt-6 space-y-3">
-                    <h2 class="text-xs font-semibold text-textMuted uppercase tracking-wider">Ask Honeybee about memories</h2>
-                    <div class="flex items-center space-x-2">
-                        <input id="aiQuery" type="text" placeholder="e.g. what do you know about me?" onkeydown="if(event.key==='Enter')askAI()"
-                            class="flex-1 bg-surface border border-borderSubtle rounded-lg px-3 py-2.5 text-sm placeholder-textMuted focus:outline-none focus:border-emeraldAccent/50 transition-colors">
-                        <button id="askBtn" onclick="askAI()" class="bg-emeraldAccent hover:bg-emerald-600 text-bgMain text-xs font-medium px-4 py-2.5 rounded-lg transition-colors disabled:opacity-40">Ask</button>
+                <div class="space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Style prompt</label>
+                        <textarea id="vibePrompt" rows="3" placeholder="e.g. You sound like an enthusiastic, friendly technical mentor. Use short paragraphs and a compact structure. Avoid corporate speak; include relevant emojis occasionally."
+                            class="w-full bg-surface border border-borderSubtle rounded-lg px-3 py-2.5 text-sm text-warmWhite placeholder-textMuted focus:outline-none focus:border-emeraldAccent/50 transition-colors resize-none leading-relaxed"></textarea>
                     </div>
-                    <div id="aiAnswer" class="hidden text-sm text-warmWhite bg-surface border border-borderSubtle rounded-xl p-4 leading-relaxed whitespace-pre-wrap"></div>
+
+    
+                    <div class="flex items-center space-x-2">
+                        <button onclick="saveVibe()" id="vibeSaveBtn" class="bg-emeraldAccent hover:bg-emerald-600 text-bgMain text-xs font-medium px-4 py-2.5 rounded-lg transition-colors disabled:opacity-40">Save</button>
+                        <button onclick="resetVibe()" class="text-xs bg-surface hover:bg-surfaceHover border border-borderSubtle px-3 py-2.5 rounded-lg transition-colors">Reset</button>
+                    </div>
+                    <div id="vibeToast" class="hidden text-xs text-matcha"></div>
                 </div>
             </div>
         </main>
-    </div>
+   </div>
 </div>
 
-<script>
-    const SECTION = "memories";
-
-    window.addEventListener('DOMContentLoaded', async () => {
-        if (!localStorage.getItem('honeybee_token')) { window.location.href = '/login'; return; }
-        try {
-            const res = await fetch(`/api/${SECTION}`);
-            const data = await res.json();
-            document.getElementById('itemsList').innerHTML = (data.items || []).map(renderItem).join('') ||
-                '<div class="text-textMuted text-xs">Nothing here yet.</div>';
-        } catch (e) {
-            document.getElementById('itemsList').innerHTML = '<div class="text-red-300 text-xs">Failed to load data.</div>';
-        }
-    });
-
-    function renderItem(item) {
-        return `<div class="p-4 bg-surface border border-borderSubtle rounded-xl flex items-center justify-between hover:border-borderHover transition-colors">
-            <div>
-                <div class="text-sm font-medium text-warmWhite">${escapeHtml(item.name)}</div>
-                <div class="text-[11px] text-mutedGreen mt-0.5">${escapeHtml(item.detail || '')}</div>
-            </div>
-            <span class="text-[10px] px-2 py-0.5 rounded-full border ${item.badge_class || 'border-borderSubtle text-mutedGreen'}">${escapeHtml(item.badge || '')}</span>
-        </div>`;
-    }
-
-    async function askAI() {
-        const q = document.getElementById('aiQuery').value.trim();
-        if (!q) return;
-        const btn = document.getElementById('askBtn');
-        btn.disabled = true; btn.textContent = '...';
-        const out = document.getElementById('aiAnswer');
-        out.classList.remove('hidden');
-        out.textContent = 'Thinking...';
-        try {
-            const res = await fetch('/api/ai', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('honeybee_token') },
-                body: JSON.stringify({ message: `[${SECTION} assistant] ${q}` })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Request failed');
-            out.textContent = data.response;
-        } catch (e) {
-            out.textContent = e.message;
-        } finally {
-            btn.disabled = false; btn.textContent = 'Ask';
-        }
-    }
-
-    function escapeHtml(t) {
-        return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-    }
-</script>
 </body>
 </html>

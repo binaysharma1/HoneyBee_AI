@@ -1,7 +1,7 @@
+import json
 import logging
 from pathlib import Path
 
-import logging
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
@@ -37,6 +37,7 @@ PAGES = {
     "tools": "tools.html",
     "files": "files.html",
     "tasks": "tasks.html",
+    "vibe": "vibe.html",
 }
 
 SECTION_DATA = {
@@ -155,6 +156,11 @@ async def memories_page() -> FileResponse:
     return _page("memories")
 
 
+@app.get("/vibe", include_in_schema=False)
+async def vibe_page() -> FileResponse:
+    return _page("vibe")
+
+
 @app.post("/api/auth/signup")
 def signup_api(body: SignupRequest, db: Session = Depends(get_db)) -> dict:
     name = body.name.strip()
@@ -181,6 +187,27 @@ def login_api(body: LoginRequest, db: Session = Depends(get_db)) -> dict:
 @app.get("/api/auth/me")
 def me_api(user: User = Depends(auth.get_current_user)) -> dict:
     return {"id": user.id, "name": user.name, "email": user.email}
+
+
+class VibeUpdate(BaseModel):
+    vibe_prompt: str | None = None
+
+
+@app.get("/api/users/me/vibe")
+def get_my_vibe(user: User = Depends(auth.get_current_user)) -> dict:
+    return {"vibe_prompt": user.vibe_prompt or ""}
+
+
+@app.put("/api/users/me/vibe")
+def update_my_vibe(
+    body: VibeUpdate,
+    user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    if body.vibe_prompt is not None:
+        user.vibe_prompt = body.vibe_prompt.strip() or None
+    db.commit()
+    return {"vibe_prompt": user.vibe_prompt}
 
 
 #  Conversations 
@@ -300,6 +327,11 @@ async def ai_response(
 
     llm_messages = list(history)
     system_parts = ["You are Honeybee, a personalized AI assistant. You remember details the user shares across sessions and use them to give helpful, contextual answers. Keep answers concise and friendly."]
+
+    # Inject user style/vibe preferences before everything else
+    if user.vibe_prompt:
+        system_parts.insert(0, user.vibe_prompt)
+
     if memories:
         system_parts.append("Known facts about this user:\n- " + "\n- ".join(memories))
     if web_context:
