@@ -9,6 +9,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script>
+        tailwind.config = {
+            theme: { extend: {
+                colors: {
+                    bgMain: '#0B0F0D', bgSecondary: '#111713', surface: '#151C18', surfaceHover: '#1C2620',
+                    borderSubtle: '#1E2B23', borderHover: '#2A3C32', emeraldAccent: '#10B981', matcha: '#34D399',
+                    limeAccent: '#A3E635', warmWhite: '#F3F4F6', mutedGreen: '#9CA3AF', textMuted: '#6B7280'
+                },
+                fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                boxShadow: { glow: '0 0 25px -5px rgba(16, 185, 129, 0.2)', subtle: '0 4px 20px -2px rgba(0, 0, 0, 0.5)' }
+            } }
+        }
+    </script>
+    <script>
         async function loadVibe() {
             try {
                 const res = await fetch('/api/users/me/vibe', {
