@@ -1,0 +1,47 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: HoneyBee_ai
+    ports:
+      - "5432:5432"
+    volumes:
+      - honeybee_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "HoneyBee_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:changeme@db:5432/HoneyBee_ai
+      JWT_SECRET: djkfoef9WPOefkwfnjpweo29fjwelw
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_DAYS: 7
+      HONEYBEE_PROVIDER: groq
+      GROQ_BASE_URL: https://api.groq.com/openai/v1
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: qwen/qwen3.8-27b
+      HONEYBEE_EMBEDDING_MODEL: text-embedding-embeddinggemma-300m-qat
+      HONEYBEE_EMBEDDING_DIMS: 768
+      HONEYBEE_EMBEDDING_BASE_URL: http://host.docker.internal:1234/v1
+    # On Linux, this lets the app inside Docker talk to LM Studio on your host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/app
+    command: ./start.sh
+
+volumes:
+  honeybee_db:

@@ -138,6 +138,24 @@ uv run alembic upgrade head
 uv run ai
 ```
 
+### Docker option
+
+If you want a single-command environment (no local venv/postgres setup):
+
+```bash
+cp .env.example .env
+# edit .env: set your Groq/NVIDIA keys and embedding URL
+
+docker compose up --build
+```
+
+This starts:
+- a Postgres 17 container with the `honeybee_ai` database
+- the web app on `http://127.0.0.1:8000`
+- runs `alembic upgrade head` on startup and exposes `/health`
+
+---
+
 ## Sample `.env`
 
 ```env
